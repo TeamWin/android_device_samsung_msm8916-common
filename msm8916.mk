@@ -156,10 +156,6 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
 	libtime_genoff
 
-# Boot jars
-PRODUCT_BOOT_JARS += \
-	tcmiface
-
 # Connectivity Engine support
 PRODUCT_PACKAGES += \
 	libcnefeatureconfig
@@ -255,6 +251,7 @@ PRODUCT_PACKAGES += \
 	libcurl \
 	ltrace \
 	javax.btobex \
+	tcmiface \
 	tcpdump \
 	libkeyutils \
 	libjpega \
