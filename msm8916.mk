@@ -140,6 +140,10 @@ PRODUCT_PACKAGES += \
 	tinycap \
 	tinypcminfo
 
+# Bluetooth
+PRODUCT_PACKAGES += \
+	libbt-vendor
+
 # Camera
 PRODUCT_PACKAGES += \
 	libmm-qcamera \
