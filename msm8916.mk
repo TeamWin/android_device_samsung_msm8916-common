@@ -262,7 +262,6 @@ PRODUCT_PACKAGES += \
 	libjpega \
 	libexifa \
 	libstlport \
-	datatop \
 	sockev \
 	librmnetctl
 
