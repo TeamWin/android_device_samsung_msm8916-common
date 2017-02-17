@@ -263,6 +263,7 @@ PRODUCT_PACKAGES += \
 	libexifa \
 	libstlport \
 	sockev \
+	rmnetcli \
 	librmnetctl
 
 # OMX
