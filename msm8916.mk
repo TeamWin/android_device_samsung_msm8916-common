@@ -140,6 +140,10 @@ PRODUCT_PACKAGES += \
 	tinycap \
 	tinypcminfo
 
+# Bootloader-recovery
+PRODUCT_PACKAGES += \
+	libbootloader_message
+
 # Bluetooth
 PRODUCT_PACKAGES += \
 	libbt-vendor
