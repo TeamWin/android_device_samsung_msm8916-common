@@ -1,0 +1,170 @@
+diff --git a/QCamera/HAL/core/Android.mk b/QCamera/HAL/core/Android.mk
+index 8b919926d..88a4a1b2d 100755
+--- a/QCamera/HAL/core/Android.mk
++++ b/QCamera/HAL/core/Android.mk
+@@ -105,9 +105,9 @@ LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
+ LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include/media
+ LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
+ 
+-LOCAL_C_INCLUDES += hardware/qcom/display/libgralloc \
+-        hardware/qcom/display/libgenlock \
+-        hardware/qcom/media/libstagefrighthw
++LOCAL_C_INCLUDES += hardware/qcom/display-caf/msm8916/libgralloc \
++        hardware/qcom/display-caf/msm8916/libgenlock \
++        hardware/qcom/media-caf/msm8916/libstagefrighthw
+ 
+ # if debug service layer and up , use stub camera!
+ LOCAL_C_INCLUDES += \
+diff --git a/QCamera/HAL2/core/Android.mk b/QCamera/HAL2/core/Android.mk
+index 1de0a876e..3a8db78c7 100644
+--- a/QCamera/HAL2/core/Android.mk
++++ b/QCamera/HAL2/core/Android.mk
+@@ -53,9 +53,9 @@ LOCAL_C_INCLUDES := \
+         $(LOCAL_PATH)/../../stack/mm-jpeg-interface/inc\
+         $(TARGET_OUT_INTERMEDIATES)/include/mm-camera-interface_badger \
+ 
+-LOCAL_C_INCLUDES += hardware/qcom/display/libgralloc \
+-        hardware/qcom/display/libgenlock \
+-        hardware/qcom/media/libstagefrighthw \
++LOCAL_C_INCLUDES += hardware/qcom/display-caf/msm8916/libgralloc \
++        hardware/qcom/display-caf/msm8916/libgenlock \
++        hardware/qcom/media-caf/msm8916/libstagefrighthw \
+ 	system/media/camera/include
+ 
+ # if debug service layer and up , use stub camera!
+diff --git a/QCamera/stack/mm-camera-interface/Android.mk b/QCamera/stack/mm-camera-interface/Android.mk
+index 23523fea5..8b259bc30 100755
+--- a/QCamera/stack/mm-camera-interface/Android.mk
++++ b/QCamera/stack/mm-camera-interface/Android.mk
+@@ -42,7 +42,7 @@ LOCAL_C_INCLUDES += \
+     $(TARGET_OUT_HEADERS)/mm-still/mm-omx
+ # (END) Need to remove later once dependency on jpeg removed
+ 
+-LOCAL_C_INCLUDES+= hardware/qcom/media/mm-core/inc
++LOCAL_C_INCLUDES+= hardware/qcom/media-caf/msm8916/mm-core/inc
+ LOCAL_CFLAGS += -include bionic/libc/kernel/common/linux/socket.h
+ LOCAL_CFLAGS += -include bionic/libc/kernel/common/linux/un.h
+ 
+diff --git a/QCamera2/HAL/Android.mk b/QCamera2/HAL/Android.mk
+index 5ec9ce224..6dac341b3 100644
+--- a/QCamera2/HAL/Android.mk
++++ b/QCamera2/HAL/Android.mk
+@@ -42,9 +42,9 @@ endif
+ LOCAL_C_INCLUDES := \
+         $(LOCAL_PATH)/../stack/common \
+         frameworks/native/include/media/openmax \
+-        hardware/qcom/display/libgralloc \
+-        hardware/qcom/display/libqdutils \
+-        hardware/qcom/media/libstagefrighthw \
++	hardware/qcom/display-caf/msm8916/libgralloc \
++	hardware/qcom/display-caf/msm8916/libqdutils \
++	hardware/qcom/media-caf/msm8916/libstagefrighthw \
+         system/media/camera/include \
+         $(LOCAL_PATH)/../../mm-image-codec/qexif \
+         $(LOCAL_PATH)/../../mm-image-codec/qomx_core \
+@@ -60,12 +60,12 @@ endif
+ LOCAL_C_INCLUDES += \
+         $(TARGET_OUT_HEADERS)/qcom/display
+ LOCAL_C_INCLUDES += \
+-        hardware/qcom/display/libqservice
++	hardware/qcom/display-caf/msm8916/libqservice
+ 
+ #ifeq ($(TARGET_USE_VENDOR_CAMERA_EXT),true)
+-#LOCAL_C_INCLUDES += hardware/qcom/display/msm8974/libgralloc
++#LOCAL_C_INCLUDES += hardware/qcom/display-caf/msm8974/libgralloc
+ #else
+-LOCAL_C_INCLUDES += hardware/qcom/display/libgralloc
++LOCAL_C_INCLUDES += hardware/qcom/display-caf/msm8916/libgralloc
+ #endif
+ LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
+ LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include/media
+@@ -90,6 +90,6 @@ LOCAL_MODULE_TAGS := optional
+ 
+ include $(BUILD_SHARED_LIBRARY)
+ 
+-ifeq ($(TARGET_USES_AOSP),false)
+-include $(LOCAL_PATH)/test/Android.mk
+-endif
++#ifeq ($(TARGET_USES_AOSP),false)
++#include $(LOCAL_PATH)/test/Android.mk
++#endif
+diff --git a/QCamera2/HAL/test/Android.mk b/QCamera2/HAL/test/Android.mk
+index c32acce67..d71f83a7d 100644
+--- a/QCamera2/HAL/test/Android.mk
++++ b/QCamera2/HAL/test/Android.mk
+@@ -39,7 +39,8 @@ LOCAL_C_INCLUDES += \
+     frameworks/base/include/media \
+     external/skia/include/core \
+     external/skia/include/images \
+-    hardware/qcom/display/libgralloc \
++    hardware/qcom/display-caf/msm8916/libgralloc \
++    frameworks/av/include/camera/android \
+     frameworks/av/include/media/stagefright \
+     frameworks/native/include/media/openmax \
+ 
+diff --git a/QCamera2/HAL/test/qcamera_test.cpp b/QCamera2/HAL/test/qcamera_test.cpp
+index 2bebe31c8..895572cc7 100644
+--- a/QCamera2/HAL/test/qcamera_test.cpp
++++ b/QCamera2/HAL/test/qcamera_test.cpp
+@@ -46,7 +46,7 @@
+ #include <system/camera.h>
+ 
+ #include <camera/Camera.h>
+-#include <camera/ICamera.h>
++#include <hardware/ICamera.h>
+ #include <camera/CameraParameters.h>
+ #include <media/mediarecorder.h>
+ 
+diff --git a/QCamera2/stack/mm-camera-interface/Android.mk b/QCamera2/stack/mm-camera-interface/Android.mk
+index 7ddaf331a..2eb67b774 100755
+--- a/QCamera2/stack/mm-camera-interface/Android.mk
++++ b/QCamera2/stack/mm-camera-interface/Android.mk
+@@ -34,7 +34,7 @@ LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
+ LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include/media
+ LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
+ 
+-LOCAL_C_INCLUDES += hardware/qcom/media/mm-core/inc
++LOCAL_C_INCLUDES += hardware/qcom/media-caf/msm8916/mm-core/inc
+ ifeq ($(call is-platform-sdk-version-at-least,20),true)
+ LOCAL_C_INCLUDES += system/media/camera/include
+ endif
+diff --git a/QCamera2/stack/mm-jpeg-interface/test/Android.mk b/QCamera2/stack/mm-jpeg-interface/test/Android.mk
+index dd1048492..2622ec088 100644
+--- a/QCamera2/stack/mm-jpeg-interface/test/Android.mk
++++ b/QCamera2/stack/mm-jpeg-interface/test/Android.mk
+@@ -16,7 +16,7 @@ LOCAL_CFLAGS += -DUSE_ION
+ endif
+ 
+ OMX_HEADER_DIR := frameworks/native/include/media/openmax
+-OMX_CORE_DIR := hardware/qcom/camera/mm-image-codec
++OMX_CORE_DIR := hardware/qcom/camera-caf/msm8916/mm-image-codec
+ 
+ LOCAL_C_INCLUDES := $(MM_JPEG_TEST_PATH)
+ LOCAL_C_INCLUDES += $(MM_JPEG_TEST_PATH)/../inc
+@@ -27,7 +27,7 @@ LOCAL_C_INCLUDES += $(OMX_CORE_DIR)/qomx_core
+ 
+ ifneq ($(strip $(USE_BIONIC_HEADER)),true)
+ LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
+-LOCAL_C_INCLUDES += hardware/qcom/camera
++LOCAL_C_INCLUDES += hardware/qcom/camera-caf/msm8916
+ endif
+ LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
+ 
+@@ -60,7 +60,7 @@ LOCAL_CFLAGS += -DUSE_ION
+ endif
+ 
+ OMX_HEADER_DIR := frameworks/native/include/media/openmax
+-OMX_CORE_DIR := hardware/qcom/camera/mm-image-codec
++OMX_CORE_DIR := hardware/qcom/camera-caf/msm8916/mm-image-codec
+ 
+ LOCAL_C_INCLUDES := $(MM_JPEG_TEST_PATH)
+ LOCAL_C_INCLUDES += $(MM_JPEG_TEST_PATH)/../inc
+@@ -71,7 +71,7 @@ LOCAL_C_INCLUDES += $(OMX_CORE_DIR)/qomx_core
+ 
+ ifneq ($(strip $(USE_BIONIC_HEADER)),true)
+ LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
+-LOCAL_C_INCLUDES += hardware/qcom/camera
++LOCAL_C_INCLUDES += hardware/qcom/camera-caf/msm8916
+ endif
+ LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
+ 
