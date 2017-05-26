@@ -333,8 +333,6 @@ typedef struct mm_jpeg_job_session {
 
   mm_jpeg_queue_t *session_handle_q;
   mm_jpeg_queue_t *out_buf_q;
-
-  uint32_t job_index;
 } mm_jpeg_job_session_t;
 
 typedef struct {
@@ -386,11 +384,6 @@ typedef struct mm_jpeg_obj_t {
   /* Max pic dimension for work buf calc*/
   uint32_t max_pic_w;
   uint32_t max_pic_h;
-
-  /* previous work buffer dimensions */
-  uint32_t prev_w;
-  uint32_t prev_h;
-
   uint32_t work_buf_cnt;
 
 #ifdef LOAD_ADSP_RPC_LIB

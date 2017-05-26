@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2016, The Linux Foundataion. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundataion. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -39,15 +39,6 @@ extern "C" {
 #include <linux/msm_ion.h>
 #include <mm_camera_interface.h>
 }
-
-//OFFSET, SIZE, USAGE, TIMESTAMP, FORMAT, BUFFER INDEX
-#define VIDEO_METADATA_NUM_INTS 6
-
-#ifdef USE_MEDIA_EXTENSIONS
-#ifndef VIDEO_METADATA_NUM_COMMON_INTS
-#define VIDEO_METADATA_NUM_COMMON_INTS 1
-#endif
-#endif
 
 namespace qcamera {
 
@@ -201,23 +192,11 @@ public:
     virtual void deallocate();
     virtual camera_memory_t *getMemory(uint32_t index, bool metadata) const;
     virtual int getMatchBufIndex(const void *opaque, bool metadata) const;
-#ifdef USE_MEDIA_EXTENSIONS
-    native_handle_t *getNativeHandle(uint32_t index, bool metadata = true);
-    int closeNativeHandle(const void *data, bool metadata);
-    static int closeNativeHandle(const void *data);
-#endif
-    int getUsage(){return mUsage;};
-    int getFormat(){return mFormat;};
-    void setVideoInfo(int usage, cam_format_t format);
-    int convCamtoOMXFormat(cam_format_t format);
+
 private:
     camera_memory_t *mMetadata[MM_CAMERA_MAX_NUM_FRAMES];
-    uint8_t mMetaBufCount;
-#ifdef USE_MEDIA_EXTENSIONS
-    native_handle_t *mNativeHandle[MM_CAMERA_MAX_NUM_FRAMES];
-#endif
-    int mUsage, mFormat;
 };
+;
 
 // Gralloc Memory is acquired from preview window
 class QCameraGrallocMemory : public QCameraMemory {
@@ -240,19 +219,18 @@ public:
     virtual void *getPtr(uint32_t index) const;
 
     void setWindowInfo(preview_stream_ops_t *window, int width, int height,
-        int stride, int scanline, int format, int maxFPS);
+        int stride, int scanline, int format);
     // Enqueue/display buffer[index] onto the native window,
     // and dequeue one buffer from it.
     // Returns the buffer index of the dequeued buffer.
     int displayBuffer(uint32_t index);
-    void setMaxFPS(int maxFPS);
 
 private:
     buffer_handle_t *mBufferHandle[MM_CAMERA_MAX_NUM_FRAMES];
     int mLocalFlag[MM_CAMERA_MAX_NUM_FRAMES];
     struct private_handle_t *mPrivateHandle[MM_CAMERA_MAX_NUM_FRAMES];
     preview_stream_ops_t *mWindow;
-    int mWidth, mHeight, mFormat, mStride, mScanline, mMaxFPS;
+    int mWidth, mHeight, mFormat, mStride, mScanline;
     camera_request_memory mGetMemory;
     camera_memory_t *mCameraMemory[MM_CAMERA_MAX_NUM_FRAMES];
     int mMinUndequeuedBuffers;

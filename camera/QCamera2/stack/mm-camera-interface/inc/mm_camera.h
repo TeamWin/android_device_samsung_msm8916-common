@@ -104,18 +104,13 @@ typedef struct {
 } mm_camera_generic_cmd_t;
 
 typedef struct {
-    uint32_t frame_idx;
-    cam_stream_type_t stream_type;
-} mm_camera_flush_cmd_t;
-
-typedef struct {
     mm_camera_cmdcb_type_t cmd_type;
     union {
         mm_camera_buf_info_t buf;    /* frame buf if dataCB */
         mm_camera_event_t evt;       /* evt if evtCB */
         mm_camera_super_buf_t superbuf; /* superbuf if superbuf dataCB*/
         mm_camera_req_buf_t req_buf; /* num of buf requested */
-        mm_camera_flush_cmd_t flush_cmd; /* frame idx boundary for flush superbuf queue*/
+        uint32_t frame_idx; /* frame idx boundary for flush superbuf queue*/
         mm_camera_super_buf_notify_mode_t notify_mode; /* notification mode */
         mm_camera_generic_cmd_t gen_cmd;
     } u;
@@ -128,7 +123,6 @@ typedef struct {
     cam_queue_t cmd_queue; /* cmd queue (queuing dataCB, asyncCB, or exitCMD) */
     pthread_t cmd_pid;           /* cmd thread ID */
     cam_semaphore_t cmd_sem;     /* semaphore for cmd thread */
-    cam_semaphore_t sync_sem;     /* semaphore for synchronization with cmd thread */
     mm_camera_cmd_cb_t cb;       /* cb for cmd */
     void* user_data;             /* user_data for cb */
     char threadName[THREAD_NAME_SIZE];
@@ -362,12 +356,6 @@ typedef struct {
     void *user_data;
 } mm_channel_bundle_t;
 
-typedef enum {
-    MM_CHANNEL_BRACKETING_STATE_OFF,
-    MM_CHANNEL_BRACKETING_STATE_WAIT_GOOD_FRAME_IDX,
-    MM_CHANNEL_BRACKETING_STATE_ACTIVE,
-} mm_channel_bracketing_state_t;
-
 typedef struct mm_channel {
     uint32_t my_hdl;
     mm_channel_state_type_t state;
@@ -404,7 +392,7 @@ typedef struct mm_channel {
     uint8_t needLEDFlash;
     uint8_t previewSkipCnt;
 
-    mm_channel_bracketing_state_t bracketingState;
+    uint8_t need3ABracketing;
     uint8_t isFlashBracketingEnabled;
     uint8_t isZoom1xFrameRequested;
     char threadName[THREAD_NAME_SIZE];
@@ -461,7 +449,6 @@ typedef struct {
     char video_dev_name[MM_CAMERA_MAX_NUM_SENSORS][MM_CAMERA_DEV_NAME_LEN];
     mm_camera_obj_t *cam_obj[MM_CAMERA_MAX_NUM_SENSORS];
     struct camera_info info[MM_CAMERA_MAX_NUM_SENSORS];
-    uint8_t is_yuv[MM_CAMERA_MAX_NUM_SENSORS]; // 1=CAM_SENSOR_YUV, 0=CAM_SENSOR_RAW
 } mm_camera_ctrl_t;
 
 typedef enum {

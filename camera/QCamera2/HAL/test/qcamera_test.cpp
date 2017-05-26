@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2015, The Linux Foundataion. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundataion. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -96,12 +96,8 @@ const char CameraContext::KEY_ZSL[] = "zsl";
  *==========================================================================*/
 void CameraContext::previewCallback(const sp<IMemory>& mem)
 {
-    uint8_t *ptr = (uint8_t*) mem->pointer();
-    if (ptr == NULL) {
-        ALOGE("Error: mem->pointer() NULL");
-        return;
-    }
     printf("PREVIEW Callback %p", mem->pointer());
+    uint8_t *ptr = (uint8_t*) mem->pointer();
     printf("PRV_CB: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x",
            ptr[0],
            ptr[1],
@@ -229,7 +225,7 @@ SkBitmap * CameraContext::PiPCopyToOneFile(
     unsigned int dstOffset;
     unsigned int srcOffset;
 
-    if (bitmap0 == NULL || bitmap1 == NULL) {
+    if (bitmap0 == NULL && bitmap1 == NULL) {
         return NULL;
     }
 
@@ -329,8 +325,8 @@ status_t CameraContext::decodeJPEG(const sp<IMemory>& mem, SkBitmap *skBM)
         break;
     }
 
-#ifndef USE_KK_CODE
-     if (SkImageDecoder::DecodeMemory(buff, (size_t) size, skBM, kRGBA_8888_SkColorType,
+#ifdef USE_KK_CODE
+    if (SkImageDecoder::DecodeMemory(buff, size, skBM, prefConfig,
             SkImageDecoder::kDecodePixels_Mode) == false) {
         printf("%s():%d:: Failed during jpeg decode\n",__FUNCTION__,__LINE__);
         return BAD_VALUE;
@@ -363,10 +359,6 @@ status_t CameraContext::encodeJPEG(SkWStream * stream,
     int qFactor = 100;
 
     skJpegEnc = SkImageEncoder::Create(SkImageEncoder::kJPEG_Type);
-    if (!skJpegEnc) {
-        ALOGE("%s: skJpegEnc is NULL\n", __func__);
-        return BAD_VALUE;
-    }
 
     if (skJpegEnc->encodeStream(stream, *bitmap, qFactor) == false) {
         return BAD_VALUE;
@@ -482,10 +474,7 @@ status_t CameraContext::ReadSectionsFromBuffer (unsigned char *buffer,
     mSectionsAllocated = 10;
 
     mSections = (Sections_t *)malloc(sizeof(Sections_t)*mSectionsAllocated);
-    if (mSections == NULL) {
-        ALOGE("malloc failed\n");
-        return NO_MEMORY;
-    }
+
     if (!buffer) {
         printf("Input buffer is null\n");
         return BAD_VALUE;
@@ -510,13 +499,6 @@ status_t CameraContext::ReadSectionsFromBuffer (unsigned char *buffer,
         unsigned char * Data;
 
         CheckSectionsAllocated();
-
-        // The call to CheckSectionsAllocated() may reallocate mSections
-        // so need to check for NULL again.
-        if (mSections == NULL) {
-            printf("%s: not enough memory\n", __func__);
-            return NO_MEMORY;
-        }
 
         for (a=0;a<=16;a++){
             marker = buffer[pos++];
@@ -588,14 +570,6 @@ status_t CameraContext::ReadSectionsFromBuffer (unsigned char *buffer,
                     memcpy(Data, buffer+pos, size);
 
                     CheckSectionsAllocated();
-
-                    // Call to CheckSectionsAllocated may reallocate mSections
-                    // so need to check for NULL again.
-                    if (mSections == NULL) {
-                        printf("%s: not enough memory\n", __func__);
-                        return NO_MEMORY;
-                    }
-
                     mSections[mSectionsRead].Data = Data;
                     mSections[mSectionsRead].Size = size;
                     mSections[mSectionsRead].Type = PSEUDO_IMAGE_MARKER;
@@ -836,7 +810,7 @@ void CameraContext::postData(int32_t msgType,
 
     if (msgType & CAMERA_MSG_COMPRESSED_IMAGE ) {
         String8 jpegPath;
-        jpegPath = jpegPath.format("/data/misc/camera/img_%d.jpg", JpegIdx);
+        jpegPath = jpegPath.format("/sdcard/img_%d.jpg", JpegIdx);
         if (!mPiPCapture) {
             // Normal capture case
             printf("JPEG done\n");
@@ -884,20 +858,8 @@ void CameraContext::postData(int32_t msgType,
                     }
 
                     mJEXIFTmp = FindSection(M_EXIF);
-                    if (!mJEXIFTmp) {
-                        ALOGE("%s:mJEXIFTmp is null\n", __func__);
-                        DiscardData();
-                        DiscardSections();
-                        return;
-                    }
                     mJEXIFSection = *mJEXIFTmp;
                     mJEXIFSection.Data = (unsigned char*)malloc(mJEXIFTmp->Size);
-                    if (!mJEXIFSection.Data) {
-                        ALOGE("%s: Not enough memory\n", __func__);
-                        DiscardData();
-                        DiscardSections();
-                        return;
-                    }
                     memcpy(mJEXIFSection.Data,
                         mJEXIFTmp->Data, mJEXIFTmp->Size);
                     DiscardData();
@@ -906,12 +868,6 @@ void CameraContext::postData(int32_t msgType,
                     wStream = new SkFILEWStream(jpegPath.string());
                     skBMDec = PiPCopyToOneFile(&mInterpr->camera[0]->skBMtmp,
                             &mInterpr->camera[1]->skBMtmp);
-                    if (!skBMDec) {
-                        ALOGE("%s:skBMDec is null\n", __func__);
-                        delete wStream;
-                        return;
-                    }
-
                     if (encodeJPEG(wStream, skBMDec, jpegPath) != false) {
                         printf("%s():%d:: Failed during jpeg encode\n",
                                 __FUNCTION__, __LINE__);
@@ -994,11 +950,7 @@ void CameraContext::dataCallbackTimestamp(nsecs_t timestamp,
     ANativeWindowBuffer* anb = NULL;
 
     dstBuff = (void *) dataPtr->pointer();
-    if (dstBuff == NULL) {
-        ALOGE("destination buff NULL");
-        mInterpr->ViVUnlock();
-        return;
-    }
+
     if (mCameraIndex == mInterpr->mViVVid.sourceCameraID) {
         srcYStride = calcStride(currentVideoSize.width);
         srcUVStride = calcStride(currentVideoSize.width);
@@ -1013,7 +965,7 @@ void CameraContext::dataCallbackTimestamp(nsecs_t timestamp,
         mInterpr->mViVBuff.YScanLines = srcYScanLines;
         mInterpr->mViVBuff.UVScanLines = srcUVScanLines;
 
-        memcpy( mInterpr->mViVBuff.buff, dstBuff,
+        memcpy( mInterpr->mViVBuff.buff, (void *) dataPtr->pointer(),
             mInterpr->mViVBuff.buffSize);
 
         mInterpr->mViVVid.isBuffValid = true;
@@ -2843,17 +2795,15 @@ status_t Interpreter::configureViVCodec()
         mTestContext->mViVVid.VideoSizes[0].height >=
         mTestContext->mViVVid.VideoSizes[1].width *
         mTestContext->mViVVid.VideoSizes[1].height) {
-        native_window_set_buffers_dimensions(mTestContext->mViVVid.ANW.get(),
+        native_window_set_buffers_geometry(mTestContext->mViVVid.ANW.get(),
             mTestContext->mViVVid.VideoSizes[0].width,
-            mTestContext->mViVVid.VideoSizes[0].height);
-        native_window_set_buffers_format(mTestContext->mViVVid.ANW.get(),
-          HAL_PIXEL_FORMAT_NV12_ENCODEABLE);
+            mTestContext->mViVVid.VideoSizes[0].height,
+            HAL_PIXEL_FORMAT_NV12_ENCODEABLE);
     } else {
-        native_window_set_buffers_dimensions(mTestContext->mViVVid.ANW.get(),
+        native_window_set_buffers_geometry(mTestContext->mViVVid.ANW.get(),
             mTestContext->mViVVid.VideoSizes[1].width,
-            mTestContext->mViVVid.VideoSizes[1].height);
-        native_window_set_buffers_format(mTestContext->mViVVid.ANW.get(),
-          HAL_PIXEL_FORMAT_NV12_ENCODEABLE);
+            mTestContext->mViVVid.VideoSizes[1].height,
+            HAL_PIXEL_FORMAT_NV12_ENCODEABLE);
     }
     native_window_set_usage(mTestContext->mViVVid.ANW.get(),
         GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN);
@@ -3182,7 +3132,7 @@ status_t TestContext::FunctionalTest()
         mInterpreter->setTestCtxInst(this);
     }
 
-    mCurrentCameraIndex = 0;
+
     mTestRunning = true;
 
     while (mTestRunning) {
@@ -3195,11 +3145,9 @@ status_t TestContext::FunctionalTest()
         switch (command.cmd) {
         case Interpreter::SWITCH_CAMERA_CMD:
         {
-            if (mCurrentCameraIndex == 0) {
-              mCurrentCameraIndex = 1;
-            } else if (mCurrentCameraIndex == 1) {
-		      mCurrentCameraIndex = 0;
-            }
+            mCurrentCameraIndex++;
+            mCurrentCameraIndex %= mAvailableCameras.size();
+            currentCamera = mAvailableCameras.itemAt(mCurrentCameraIndex);
         }
             break;
 

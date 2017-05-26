@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2013, The Linux Foundataion. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundataion. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -39,11 +39,6 @@
 namespace qcamera {
 
 QCamera2Factory gQCamera2Factory;
-
-pthread_mutex_t gCamLock = PTHREAD_MUTEX_INITIALIZER;
-//Total number of cameras opened simultaneously.
-//This variable updation is protected by gCamLock.
-uint8_t gNumCameraSessions = 0;
 
 /*===========================================================================
  * FUNCTION   : QCamera2Factory

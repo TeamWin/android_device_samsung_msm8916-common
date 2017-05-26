@@ -87,7 +87,7 @@ typedef struct {
     qcamera_release_data_t   release_data; // any data needs to be release after notify
 } qcamera_data_argm_t;
 
-#define MAX_EXIF_TABLE_ENTRIES 20
+#define MAX_EXIF_TABLE_ENTRIES 17
 class QCameraExif
 {
 public:
@@ -168,7 +168,6 @@ private:
     int32_t setYUVFrameInfo(mm_camera_super_buf_t *recvd_frame);
     static bool matchJobId(void *data, void *user_data, void *match_data);
     static int getJpegMemory(omx_jpeg_ouput_buf_t *out_buf);
-    static int releaseJpegMemory(omx_jpeg_ouput_buf_t *out_buf);
 
     int32_t reprocess(qcamera_pp_data_t *pp_job);
     int32_t stopCapture();
@@ -185,7 +184,6 @@ private:
     QCameraExif *              m_pJpegExifObj;
     uint32_t                   m_bThumbnailNeeded;
     QCameraReprocessChannel *  m_pReprocChannel;
-    camera_memory_t *          m_DataMem; // save frame mem pointer
     QCameraReprocessChannel *  m_pDualReprocChannel;
 
     int8_t                     m_bInited; // if postproc is inited

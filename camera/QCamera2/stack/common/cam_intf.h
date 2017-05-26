@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -69,16 +69,9 @@ typedef struct{
     size_t supported_iso_modes_cnt;
     cam_iso_mode_type supported_iso_modes[CAM_ISO_MODE_MAX];
 
-    /* supported iso range*/
-    int32_t min_iso;
-    int32_t max_iso;
-
     /* supported exposure time */
-    uint64_t min_exposure_time;
-    uint64_t max_exposure_time;
-
-    /*near end distance needed for diopter mode */
-    int32_t near_end_distance;
+    int32_t min_exposure_time;
+    int32_t max_exposure_time;
 
     /* supported flash modes */
     size_t supported_flash_modes_cnt;
@@ -114,17 +107,13 @@ typedef struct{
     int32_t min_wb_cct;
     int32_t max_wb_cct;
 
-    /* supported manual wb rgb gains */
-    float min_wb_gain;
-    float max_wb_gain;
-
     /* supported focus modes */
     size_t supported_focus_modes_cnt;
     cam_focus_mode_type supported_focus_modes[CAM_FOCUS_MODE_MAX];
 
     /* supported manual focus position */
-    float min_focus_pos[CAM_MANUAL_FOCUS_MODE_MAX];
-    float max_focus_pos[CAM_MANUAL_FOCUS_MODE_MAX];
+    int32_t min_focus_pos[CAM_MANUAL_FOCUS_MODE_MAX];
+    int32_t max_focus_pos[CAM_MANUAL_FOCUS_MODE_MAX];
 
     int32_t exposure_compensation_min;       /* min value of exposure compensation index */
     int32_t exposure_compensation_max;       /* max value of exposure compensation index */
@@ -154,9 +143,6 @@ typedef struct{
 
     size_t livesnapshot_sizes_tbl_cnt;                      /* livesnapshot sizes table size */
     cam_dimension_t livesnapshot_sizes_tbl[MAX_SIZES_CNT];  /* livesnapshot sizes table */
-
-    size_t vhdr_livesnapshot_sizes_tbl_cnt;                 /* vhdr_livesnapshot sizes table size */
-    cam_dimension_t vhdr_livesnapshot_sizes_tbl[MAX_SIZES_CNT];  /* vhdr_livesnapshot sizes table */
 
     size_t hfr_tbl_cnt;                                     /* table size for HFR */
     cam_hfr_info_t hfr_tbl[CAM_HFR_MODE_MAX];               /* HFR table */
@@ -204,6 +190,9 @@ typedef struct{
                                            * such as CAM_QCOM_FEATURE_SUPPORTED_FACE_DETECTION*/
     cam_padding_info_t padding_info;      /* padding information from PP */
     uint32_t min_num_pp_bufs;             /* minimum number of buffers needed by postproc module */
+    uint32_t min_required_pp_mask;        /* min required pp feature masks for ZSL.
+                                           * depends on hardware limitation, i.e. for 8974,
+                                           * sharpness is required for all ZSL snapshot frames */
 
     /* capabilities specific to HAL 3 */
 
@@ -282,10 +271,6 @@ typedef struct{
 
     uint32_t max_face_detection_count;
 
-    /* This flag tells whether device supports SW or HW WNR and this should be used
-            in conjuction with CAM_QCOM_FEATURE_DENOISE2D */
-    uint8_t is_sw_wnr;
-
     uint8_t histogram_supported;
     /* Number of histogram buckets supported */
     int32_t histogram_size;
@@ -312,7 +297,6 @@ typedef struct{
     cam_rational_type_t base_gain_factor;    /* sensor base gain factor */
     /* AF Bracketing info */
     cam_af_bracketing_t  ubifocus_af_bracketing_need;
-    cam_af_bracketing_t  refocus_af_bracketing_need;
     /* opti Zoom info */
     cam_opti_zoom_t      opti_zoom_settings_need;
     /* true Portrait info */
@@ -323,10 +307,6 @@ typedef struct{
     cam_af_bracketing_t  mtf_af_bracketing_parm;
     /* Sensor type information */
     cam_sensor_type_t sensor_type;
-    /* low power mode support */
-    uint8_t low_power_mode_supported;
-    /* support for YUV over PIX intf */
-    uint8_t use_pix_for_SOC;
 } cam_capability_t;
 
 typedef enum {
@@ -422,8 +402,12 @@ typedef struct {
 
     cam_stream_parm_buffer_t parm_buf;    /* stream based parameters */
 
+    uint8_t dis_enable;
+
     /* Image Stabilization type */
     cam_is_type_t is_type;
+
+    cam_stream_secure_t is_secure;
 
 } cam_stream_info_t;
 
@@ -483,7 +467,7 @@ typedef union {
     INCLUDE(CAM_INTF_PARM_SATURATION,               int32_t,                     1);
     INCLUDE(CAM_INTF_PARM_BRIGHTNESS,               int32_t,                     1);
     INCLUDE(CAM_INTF_PARM_ISO,                      int32_t,                     1);
-    INCLUDE(CAM_INTF_PARM_EXPOSURE_TIME,            uint64_t,                     1);
+    INCLUDE(CAM_INTF_PARM_EXPOSURE_TIME,            int32_t,                     1);
     INCLUDE(CAM_INTF_PARM_ZOOM,                     int32_t,                     1);
     INCLUDE(CAM_INTF_PARM_ROLLOFF,                  int32_t,                     1);
     INCLUDE(CAM_INTF_PARM_MODE,                     int32_t,                     1);
@@ -518,10 +502,9 @@ typedef union {
     INCLUDE(CAM_INTF_PARM_RAW_DIMENSION,            cam_dimension_t,             1);
     INCLUDE(CAM_INTF_PARM_TINTLESS,                 int32_t,                     1);
     INCLUDE(CAM_INTF_PARM_CDS_MODE,                 int32_t,                     1);
-    INCLUDE(CAM_INTF_PARM_WB_MANUAL,                cam_manual_wb_parm_t,        1);
     INCLUDE(CAM_INTF_PARM_EZTUNE_CMD,               cam_eztune_cmd_data_t,       1);
+    INCLUDE(CAM_INTF_PARM_AF_MOBICAT_CMD,           int32_t,                     1);
     INCLUDE(CAM_INTF_PARM_LONGSHOT_ENABLE,          int8_t,                      1);
-    INCLUDE(CAM_INTF_PARM_LOW_POWER_ENABLE,         int8_t,                      1);
 
     /* HAL3 specific */
     INCLUDE(CAM_INTF_META_FRAME_NUMBER,             uint32_t,                    1);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2016, The Linux Foundataion. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundataion. All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions are
@@ -32,16 +32,6 @@
 #include <utils/Errors.h>
 #include "QCamera2HWI.h"
 #include "QCameraStream.h"
-
-// Media dependencies
-#ifdef USE_MEDIA_EXTENSIONS
-#include <media/hardware/HardwareAPI.h>
-typedef struct VideoNativeHandleMetadata media_metadata_buffer;
-#else
-#include "QComOMXMetadata.h"
-typedef struct encoder_media_buffer_type media_metadata_buffer;
-#endif
-
 
 #define CAMERA_MIN_ALLOCATED_BUFFERS     3
 
@@ -477,7 +467,7 @@ int32_t QCameraStream::calcOffset(cam_stream_info_t *streamInfo)
     int32_t rc = 0;
 
     cam_dimension_t dim = streamInfo->dim;
-    if (streamInfo->pp_config.feature_mask & CAM_QCOM_FEATURE_ROTATION &&
+    if (streamInfo->pp_config.feature_mask & CAM_QCOM_FEATURE_CPP &&
             streamInfo->stream_type != CAM_STREAM_TYPE_VIDEO) {
         if (streamInfo->pp_config.rotation == ROTATE_90 ||
                 streamInfo->pp_config.rotation == ROTATE_270) {
@@ -489,9 +479,8 @@ int32_t QCameraStream::calcOffset(cam_stream_info_t *streamInfo)
 
     switch (streamInfo->stream_type) {
     case CAM_STREAM_TYPE_PREVIEW:
-        rc = mm_stream_calc_offset_preview(streamInfo,
+        rc = mm_stream_calc_offset_preview(streamInfo->fmt,
                 &dim,
-                &mPaddingInfo,
                 &streamInfo->buf_planes);
         break;
     case CAM_STREAM_TYPE_POSTVIEW:
@@ -827,50 +816,14 @@ int32_t QCameraStream::bufDone(uint32_t index)
 int32_t QCameraStream::bufDone(const void *opaque, bool isMetaData)
 {
     int32_t rc = NO_ERROR;
-    int index = -1;
 
-    QCameraVideoMemory *lVideoMem = NULL;
-    if (mStreamInfo != NULL &&
-        mStreamInfo->streaming_mode == CAM_STREAMING_MODE_BATCH) {
-            index = mStreamBatchBufs->getMatchBufIndex(opaque, TRUE);
-            lVideoMem = (QCameraVideoMemory *)mStreamBatchBufs;
-            if (index == -1 || index >= mNumBufs || mBufDefs == NULL) {
-                ALOGE("%s: Cannot find buf for opaque data = %p", __func__, opaque);
-                return BAD_INDEX;
-            }
-            camera_memory_t *video_mem = mStreamBatchBufs->getMemory(index, true);
-            if (video_mem != NULL) {
-                media_metadata_buffer * packet =
-                    (media_metadata_buffer *)video_mem->data;
-                native_handle_t *nh = const_cast<native_handle_t *>(packet->pHandle);
-                if (NULL != nh) {
-                    if (native_handle_delete(nh)) {
-                        ALOGE("%s: Unable to delete native handle", __func__);
-                    }
-                } else {
-                    ALOGE("%s : native handle not available", __func__);
-                }
-            }
-        } else {
-            index = mStreamBufs->getMatchBufIndex(opaque, isMetaData);
-            lVideoMem = (QCameraVideoMemory *)mStreamBufs;
-            if (index == -1 || index >= mNumBufs || mBufDefs == NULL) {
-                ALOGE("%s: Cannot find buf for opaque data = %p", __func__, opaque);
-                return BAD_INDEX;
-            }
-            CDBG("%s: Buffer Index = %d, Frame Idx = %d", __func__, index,
-                    mBufDefs[index].frame_idx);
-        }
-    //Close and delete duplicated native handle and FD's.
-    if (lVideoMem != NULL) {
-        rc = lVideoMem->closeNativeHandle(opaque, isMetaData);
-        if (rc != NO_ERROR) {
-            CDBG_HIGH("Invalid video metadata");
-            return rc;
-        }
-    } else {
-        CDBG_HIGH("Possible FD leak. Release recording called after stop");
+    int index = mStreamBufs->getMatchBufIndex(opaque, isMetaData);
+    if (index == -1 || index >= mNumBufs || mBufDefs == NULL) {
+        ALOGE("%s: Cannot find buf for opaque data = %p", __func__, opaque);
+        return BAD_INDEX;
     }
+    CDBG_HIGH("%s: Buffer Index = %d, Frame Idx = %d", __func__, index,
+            mBufDefs[index].frame_idx);
     rc = bufDone((uint32_t)index);
     return rc;
 }
@@ -1166,14 +1119,6 @@ int32_t QCameraStream::releaseBuffs()
 {
     int rc = NO_ERROR;
 
-    if (mBufAllocPid != 0) {
-        cond_signal(true);
-        CDBG_HIGH("%s: wait for buf allocation thread dead", __func__);
-        pthread_join(mBufAllocPid, NULL);
-        mBufAllocPid = 0;
-        CDBG_HIGH("%s: return from buf allocation thread", __func__);
-    }
-
     if (NULL != mBufDefs) {
         for (uint32_t i = 0; i < mNumBufs; i++) {
             rc = unmapBuf(CAM_MAPPING_BUF_TYPE_STREAM_BUF, i, -1);
@@ -1187,10 +1132,9 @@ int32_t QCameraStream::releaseBuffs()
         mBufDefs = NULL;
         memset(&mFrameLenOffset, 0, sizeof(mFrameLenOffset));
     }
-    if (!mStreamBufsAcquired && mStreamBufs != NULL) {
+    if ( !mStreamBufsAcquired && mStreamBufs != NULL) {
         mStreamBufs->deallocate();
         delete mStreamBufs;
-        mStreamBufs = NULL;
     }
 
     return rc;
@@ -1250,14 +1194,11 @@ void *QCameraStream::BufAllocRoutine(void *data)
  * DESCRIPTION: signal if flag "wait_for_cond" is set
  *
  *==========================================================================*/
-void QCameraStream::cond_signal(bool forceExit)
+void QCameraStream::cond_signal()
 {
     pthread_mutex_lock(&m_lock);
     if(wait_for_cond == TRUE){
         wait_for_cond = FALSE;
-        if (forceExit) {
-            mNumBufsNeedAlloc = 0;
-        }
         pthread_cond_signal(&m_cond);
     }
     pthread_mutex_unlock(&m_lock);
@@ -1296,7 +1237,6 @@ int32_t QCameraStream::putBufs(mm_camera_map_unmap_ops_tbl_t *ops_tbl)
     int rc = NO_ERROR;
 
     if (mBufAllocPid != 0) {
-        cond_signal(true);
         CDBG_HIGH("%s: wait for buf allocation thread dead", __func__);
         pthread_join(mBufAllocPid, NULL);
         mBufAllocPid = 0;
@@ -1315,7 +1255,6 @@ int32_t QCameraStream::putBufs(mm_camera_map_unmap_ops_tbl_t *ops_tbl)
     if ( !mStreamBufsAcquired ) {
         mStreamBufs->deallocate();
         delete mStreamBufs;
-        mStreamBufs = NULL;
     }
 
     return rc;

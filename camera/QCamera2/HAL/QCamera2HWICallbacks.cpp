@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2016, The Linux Foundataion. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundataion. All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions are
@@ -348,211 +348,7 @@ void QCamera2HardwareInterface::capture_channel_cb_routine(mm_camera_super_buf_t
 
     CDBG_HIGH("[KPI Perf] %s: X", __func__);
 }
-#ifdef TARGET_TS_MAKEUP
-int QCamera2HardwareInterface::yuvDataRelocate(uint8_t* pSrcBuffer,uint8_t* pDstBuffer,
-        cam_frame_len_offset_t offset) {
-    if (pSrcBuffer == NULL || pDstBuffer == NULL) {
-        CDBG_HIGH(" buf is null so return\n");
-        return -1;
-    }
 
-    void *data = NULL;
-    uint32_t offset_w = 0;
-    int32_t buf_h =0;
-
-    for (uint i = 0; i < (uint)offset.num_planes; i++) {
-        uint32_t index = offset.mp[i].offset;
-        buf_h = offset.mp[i].height;
-        if (i > 0) {
-            index += offset.mp[i-1].len;
-            buf_h = offset.mp[i-1].height / 2;//sometimes uv'h equal to y'h
-        }
-        for (int j = 0; j < buf_h; j++) {
-            data = (void *)((uint8_t *)pSrcBuffer + index);
-            memcpy(pDstBuffer + offset_w, data, offset.mp[i].width);
-            offset_w += offset.mp[i].width;
-            index += offset.mp[i].stride;
-        }
-    }
-    return 0;
-}
-
-int QCamera2HardwareInterface::yuvDataRecover(uint8_t* pSrcBuffer,uint8_t* pDstBuffer,
-        cam_frame_len_offset_t offset) {
-    if (pSrcBuffer == NULL || pDstBuffer == NULL) {
-        CDBG_HIGH(" buf is null so return\n");
-        return -1;
-    }
-
-    void *data = NULL;
-    uint32_t offset_w = 0;
-    int32_t buf_h =0;
-
-    for (uint i = 0; i < (uint)offset.num_planes; i++) {
-        uint32_t index = offset.mp[i].offset;
-        buf_h = offset.mp[i].height;
-        if (i > 0) {
-            index += offset.mp[i-1].len;
-            buf_h = offset.mp[i-1].height / 2;//sometimes uv'h equal to y'h
-        }
-
-        for (int j = 0; j < buf_h; j++) {
-            data = (void *)((uint8_t *)pSrcBuffer + offset_w);
-            memcpy((uint8_t *)pDstBuffer + index, data, offset.mp[i].width);
-            offset_w += offset.mp[i].width;
-            index += offset.mp[i].stride;
-        }
-    }
-    return 0;
-}
-
-bool isNeedDelPadding(cam_frame_len_offset_t offset, int32_t width) {
-    int32_t nLen = offset.mp[0].len;
-    return (offset.mp[0].stride != width || offset.mp[0].stride*offset.mp[0].height != nLen);
-}
-
-bool QCamera2HardwareInterface::TsMakeupProcess_Preview(mm_camera_buf_def_t *pFrame,
-        QCameraStream * pStream) {
-    CDBG("%s begin",__func__);
-    bool bRet = false;
-    if (pStream == NULL || pFrame == NULL) {
-        bRet = false;
-        CDBG_HIGH("%s pStream == NULL || pFrame == NULL",__func__);
-    } else {
-        bRet = TsMakeupProcess(pFrame,pStream,mMakeUpBuf,mFaceRect);
-    }
-    CDBG("%s end bRet = %d ",__func__,bRet);
-    return bRet;
-}
-
-bool QCamera2HardwareInterface::TsMakeupProcess_Snapshot(mm_camera_buf_def_t *pFrame,
-        QCameraStream * pStream) {
-    CDBG("%s begin",__func__);
-    bool bRet = false;
-    if (pStream == NULL || pFrame == NULL) {
-        bRet = false;
-        CDBG_HIGH("%s pStream == NULL || pFrame == NULL",__func__);
-    } else {
-        cam_frame_len_offset_t offset;
-        memset(&offset, 0, sizeof(cam_frame_len_offset_t));
-        pStream->getFrameOffset(offset);
-
-        cam_dimension_t dim;
-        pStream->getFrameDimension(dim);
-        int tempBufLen = offset.mp[0].width * offset.mp[0].height * 3 /2;
-        unsigned char* tempBuf = new unsigned char[tempBufLen];
-        memset(tempBuf,0,tempBufLen);
-        yuvDataRelocate((unsigned char*)(pFrame->buffer),tempBuf,offset);
-
-        unsigned char *yBuf  = tempBuf;
-        unsigned char *uvBuf = tempBuf + dim.width*dim.height;
-        TSMakeupData inMakeupData;
-        inMakeupData.frameWidth  = dim.width;
-        inMakeupData.frameHeight = dim.height;
-        inMakeupData.yBuf  = yBuf;
-        inMakeupData.uvBuf = uvBuf;
-        CDBG("%s detect begin",__func__);
-        TSHandle fd_handle = ts_detectface_create_context();
-        if (fd_handle != NULL) {
-            cam_format_t fmt;
-            pStream->getFormat(fmt);
-            int iret = ts_detectface_detect(fd_handle, &inMakeupData);
-            CDBG("%s ts_detectface_detect iret = %d",__func__,iret);
-            if (iret <= 0) {
-                bRet = false;
-            } else {
-                TSRect faceRect;
-                memset(&faceRect,-1,sizeof(TSRect));
-                iret = ts_detectface_get_face_info(fd_handle, 0, &faceRect, NULL,NULL,NULL);
-                CDBG("%s ts_detectface_get_face_info iret=%d,faceRect.left=%ld,"
-                        "faceRect.top=%ld,faceRect.right=%ld,faceRect.bottom=%ld"
-                        ,__func__,iret,faceRect.left,faceRect.top,faceRect.right,faceRect.bottom);
-                bRet = TsMakeupProcess(pFrame,pStream,tempBuf,faceRect);
-            }
-            ts_detectface_destroy_context(&fd_handle);
-            fd_handle = NULL;
-        } else {
-            CDBG_HIGH("%s fd_handle == NULL",__func__);
-        }
-        if(tempBuf != NULL){
-            delete[] tempBuf;
-            tempBuf = NULL;
-        }
-        CDBG("%s detect end",__func__);
-    }
-    CDBG("%s end bRet = %d ",__func__,bRet);
-    return bRet;
-}
-
-bool QCamera2HardwareInterface::TsMakeupProcess(mm_camera_buf_def_t *pFrame,
-        QCameraStream * pStream,unsigned char *pMakeupOutBuf,TSRect& faceRect) {
-    bool bRet = false;
-    CDBG("%s begin",__func__);
-    if (pStream == NULL || pFrame == NULL || pMakeupOutBuf == NULL) {
-        bRet = false;
-        CDBG_HIGH("%s pStream == NULL || pFrame == NULL || pMakeupOutBuf == NULL",__func__);
-        return bRet;
-    }
-    pthread_mutex_lock(&m_parm_lock);
-    const char* pch_makeup_enable = mParameters.get(QCameraParameters::KEY_TS_MAKEUP);
-    pthread_mutex_unlock(&m_parm_lock);
-    if (pch_makeup_enable == NULL) {
-        CDBG("%s pch_makeup_enable = null",__func__);
-        return bRet = false;
-    }
-    bool enableMakeUp = (strcmp(pch_makeup_enable,"On") == 0)&& faceRect.left > -1 ;
-    CDBG("%s pch_makeup_enable = %s ",__func__,pch_makeup_enable);
-    if (enableMakeUp) {
-        cam_dimension_t dim;
-        cam_frame_len_offset_t offset;
-        pStream->getFrameDimension(dim);
-        pStream->getFrameOffset(offset);
-        pthread_mutex_lock(&m_parm_lock);
-        int whiteLevel = mParameters.getInt(QCameraParameters::KEY_TS_MAKEUP_WHITEN),
-                cleanLevel = mParameters.getInt(QCameraParameters::KEY_TS_MAKEUP_CLEAN);
-        pthread_mutex_unlock(&(m_parm_lock));
-        unsigned char *tempOriBuf = NULL;
-
-        if (isNeedDelPadding(offset, dim.width)) {
-            tempOriBuf = new unsigned char[dim.width*dim.height * 3 /2];
-            yuvDataRelocate((unsigned char*)(pFrame->buffer),tempOriBuf,offset);
-        } else {
-            tempOriBuf = (unsigned char*)pFrame->buffer;
-        }
-        unsigned char *yBuf = tempOriBuf;
-        unsigned char *uvBuf = tempOriBuf + dim.width*dim.height;
-        unsigned char *tmpBuf = pMakeupOutBuf;
-        TSMakeupData inMakeupData, outMakeupData;
-        whiteLevel =  whiteLevel <= 0 ? 0 : (whiteLevel >= 100 ? 100 : whiteLevel);
-        cleanLevel =  cleanLevel <= 0 ? 0 : (cleanLevel >= 100 ? 100 : cleanLevel);
-        inMakeupData.frameWidth = dim.width;  // NV21 Frame width  > 0
-        inMakeupData.frameHeight = dim.height; // NV21 Frame height > 0
-        inMakeupData.yBuf =  yBuf; //  Y buffer pointer
-        inMakeupData.uvBuf = uvBuf; // VU buffer pointer
-
-        outMakeupData.frameWidth = dim.width; // NV21 Frame width  > 0
-        outMakeupData.frameHeight = dim.height; // NV21 Frame height > 0
-        outMakeupData.yBuf =  tmpBuf; //  Y buffer pointer
-        outMakeupData.uvBuf = tmpBuf+(dim.width*dim.height); // VU buffer pointer
-
-        CDBG("%s: faceRect:left 2:%ld,,right:%ld,,top:%ld,,bottom:%ld,,Level:%dx%d",
-            __func__,
-            faceRect.left,faceRect.right,faceRect.top,faceRect.bottom,cleanLevel,whiteLevel);
-        ts_makeup_skin_beauty(&inMakeupData, &outMakeupData, &(faceRect),cleanLevel,whiteLevel);
-        if (isNeedDelPadding(offset, dim.width)) {
-            yuvDataRecover(tmpBuf,(unsigned char*)pFrame->buffer,offset);
-            delete tempOriBuf;
-            tempOriBuf = NULL;
-        } else {
-            memcpy((unsigned char*)pFrame->buffer, tmpBuf, dim.width * dim.height * 3 / 2);
-        }
-        QCameraMemory *memory = (QCameraMemory *)pFrame->mem_info;
-        memory->cleanCache(pFrame->buf_idx);
-    }
-    CDBG("%s end bRet = %d ",__func__,bRet);
-    return bRet;
-}
-#endif
 /*===========================================================================
  * FUNCTION   : postproc_channel_cb_routine
  *
@@ -598,7 +394,7 @@ void QCamera2HardwareInterface::postproc_channel_cb_routine(mm_camera_super_buf_
     } else {
         pme->m_postprocessor.processPPData(frame);
     }
-    ATRACE_INT("Camera:Reprocess", 0);
+
     CDBG_HIGH("[KPI Perf] %s: X", __func__);
 }
 
@@ -642,6 +438,7 @@ void QCamera2HardwareInterface::dual_reproc_channel_cb_routine(mm_camera_super_b
     // send to postprocessor
     pme->m_postprocessor.processPPData(frame);
 
+    ATRACE_INT("Camera:Reprocess", 0);
     CDBG_HIGH("[KPI Perf] %s: X", __func__);
 }
 
@@ -691,9 +488,7 @@ void QCamera2HardwareInterface::preview_stream_cb_routine(mm_camera_super_buf_t 
         free(super_frame);
         return;
     }
-#ifdef TARGET_TS_MAKEUP
-    pme->TsMakeupProcess_Preview(frame,stream);
-#endif
+
     if (!pme->needProcessPreviewFrame()) {
         ALOGE("%s: preview is not running, no need to process", __func__);
         stream->bufDone(frame->buf_idx);
@@ -746,13 +541,11 @@ void QCamera2HardwareInterface::preview_stream_cb_routine(mm_camera_super_buf_t 
     }
 
     // Handle preview data callback
-    if (pme->mDataCb != NULL &&
-            (pme->msgTypeEnabledWithLock(CAMERA_MSG_PREVIEW_FRAME) > 0)) {
+    if (pme->mDataCb != NULL && pme->msgTypeEnabledWithLock(CAMERA_MSG_PREVIEW_FRAME) > 0) {
         int32_t rc = pme->sendPreviewCallback(stream, memory, idx);
         if (NO_ERROR != rc) {
             ALOGE("%s: Preview callback was not sent succesfully", __func__);
         }
-
     }
 
     free(super_frame);
@@ -775,7 +568,7 @@ void QCamera2HardwareInterface::preview_stream_cb_routine(mm_camera_super_buf_t 
  *              none-zero failure code
  *==========================================================================*/
 int32_t QCamera2HardwareInterface::sendPreviewCallback(QCameraStream *stream,
-        QCameraGrallocMemory *memory, uint32_t idx)
+        QCameraGrallocMemory *memory, int32_t idx)
 {
     camera_memory_t *previewMem = NULL;
     camera_memory_t *data = NULL;
@@ -833,8 +626,7 @@ int32_t QCamera2HardwareInterface::sendPreviewCallback(QCameraStream *stream,
             vStride = streamInfo->buf_planes.plane_info.mp[2].stride;
             vScanline = streamInfo->buf_planes.plane_info.mp[2].scanline;
 
-            previewBufSize = (size_t)
-                    (yStride * yScanline + uStride * uScanline + vStride * vScanline);
+            previewBufSize = yStride * yScanline + uStride * uScanline + vStride * vScanline;
             previewBufSizeFromCallback = previewBufSize;
         } else {
             yStride = streamInfo->buf_planes.plane_info.mp[0].stride;
@@ -847,11 +639,11 @@ int32_t QCamera2HardwareInterface::sendPreviewCallback(QCameraStream *stream,
             uvStrideToApp = yStrideToApp;
             uvScanlineToApp = yScanlineToApp / 2;
 
-            previewBufSize = (size_t)
-                    ((yStrideToApp * yScanlineToApp) + (uvStrideToApp * uvScanlineToApp));
+            previewBufSize = (yStrideToApp * yScanlineToApp) +
+                    (uvStrideToApp * uvScanlineToApp);
 
-            previewBufSizeFromCallback = (size_t)
-                    ((yStride * yScanline) + (uvStride * uvScanline));
+            previewBufSizeFromCallback = (yStride * yScanline) +
+                    (uvStride * uvScanline);
         }
         if(previewBufSize == previewBufSizeFromCallback) {
             previewMem = mGetMemory(memory->getFd(idx),
@@ -875,7 +667,7 @@ int32_t QCamera2HardwareInterface::sendPreviewCallback(QCameraStream *stream,
                 dstOffset = i * yStrideToApp;
 
                 memcpy((unsigned char *) dataToApp->data + dstOffset,
-                        (unsigned char *) data->data + srcOffset, (size_t) yStrideToApp);
+                        (unsigned char *) data->data + srcOffset, yStrideToApp);
             }
 
             srcBaseOffset = yStride * yScanline;
@@ -887,7 +679,7 @@ int32_t QCamera2HardwareInterface::sendPreviewCallback(QCameraStream *stream,
 
                 memcpy((unsigned char *) dataToApp->data + dstOffset,
                         (unsigned char *) data->data + srcOffset,
-                        (size_t) yStrideToApp);
+                        yStrideToApp);
             }
         }
     } else {
@@ -1109,7 +901,6 @@ void QCamera2HardwareInterface::video_stream_cb_routine(mm_camera_super_buf_t *s
                                                         void *userdata)
 {
     ATRACE_CALL();
-    QCameraVideoMemory *videoMemObj = NULL;
     CDBG("[KPI Perf] %s : BEGIN", __func__);
     QCamera2HardwareInterface *pme = (QCamera2HardwareInterface *)userdata;
     if (pme == NULL ||
@@ -1129,19 +920,19 @@ void QCamera2HardwareInterface::video_stream_cb_routine(mm_camera_super_buf_t *s
        CDBG_HIGH("[KPI Perf] %s : PROFILE_FIRST_RECORD_FRAME", __func__);
        pme->m_bRecordStarted = false ;
     }
-    CDBG("%s: Stream(%d), Timestamp: %ld %ld",
+    CDBG_HIGH("%s: Stream(%d), Timestamp: %ld %ld",
           __func__,
           frame->stream_id,
           frame->ts.tv_sec,
           frame->ts.tv_nsec);
     nsecs_t timeStamp;
     timeStamp = nsecs_t(frame->ts.tv_sec) * 1000000000LL + frame->ts.tv_nsec;
-    CDBG("Send Video frame to services/encoder TimeStamp : %lld", timeStamp);
-    videoMemObj = (QCameraVideoMemory *)frame->mem_info;
+
+    CDBG_HIGH("Send Video frame to services/encoder TimeStamp : %lld", timeStamp);
+    QCameraMemory *videoMemObj = (QCameraMemory *)frame->mem_info;
     camera_memory_t *video_mem = NULL;
     if (NULL != videoMemObj) {
         video_mem = videoMemObj->getMemory(frame->buf_idx, (pme->mStoreMetaDataInFrame > 0)? true : false);
-        videoMemObj->getNativeHandle(frame->buf_idx);
     }
     if (NULL != videoMemObj && NULL != video_mem) {
         pme->dumpFrameToFile(stream, frame, QCAMERA_DUMP_FRM_VIDEO);
@@ -1184,7 +975,6 @@ void QCamera2HardwareInterface::snapshot_channel_cb_routine(mm_camera_super_buf_
 {
     ATRACE_CALL();
     char value[PROPERTY_VALUE_MAX];
-    QCameraChannel *pChannel = NULL;
 
     CDBG_HIGH("[KPI Perf] %s: E", __func__);
     QCamera2HardwareInterface *pme = (QCamera2HardwareInterface *)userdata;
@@ -1197,12 +987,7 @@ void QCamera2HardwareInterface::snapshot_channel_cb_routine(mm_camera_super_buf_
         return;
     }
 
-    if (pme->mParameters.isLowPowerEnabled()) {
-        pChannel = pme->m_channels[QCAMERA_CH_TYPE_VIDEO];
-    } else {
-        pChannel = pme->m_channels[QCAMERA_CH_TYPE_SNAPSHOT];
-    }
-
+    QCameraChannel *pChannel = pme->m_channels[QCAMERA_CH_TYPE_SNAPSHOT];
     if (pChannel == NULL ||
         pChannel->getMyHandle() != super_frame->ch_id) {
         ALOGE("%s: Snapshot channel doesn't exist, return here", __func__);
@@ -1436,24 +1221,11 @@ void QCamera2HardwareInterface::metadata_stream_cb_routine(mm_camera_super_buf_t
     mm_camera_buf_def_t *frame = super_frame->bufs[0];
     cam_metadata_info_t *pMetaData = (cam_metadata_info_t *)frame->buffer;
 
-    if (pMetaData->is_frame_id_reset) {
-        // process frame ID reset
-        qcamera_sm_internal_evt_payload_t *payload =
-            (qcamera_sm_internal_evt_payload_t *)malloc(sizeof(qcamera_sm_internal_evt_payload_t));
-        if (NULL != payload) {
-            memset(payload, 0, sizeof(qcamera_sm_internal_evt_payload_t));
-            payload->evt_type = QCAMERA_INTERNAL_EVT_RESET_FRAME_ID;
-            // Reset the frame ID to 1
-            payload->reset_frame_idx = 1;
-            int32_t rc = pme->processEvt(QCAMERA_SM_EVT_EVT_INTERNAL, payload);
-            if (rc != NO_ERROR) {
-                ALOGE("%s: processEvt reset frame id failed", __func__);
-                free(payload);
-                payload = NULL;
-            }
-        } else {
-            ALOGE("%s: No memory for frame id reset qcamera_sm_internal_evt_payload_t", __func__);
-        }
+    if(pme->m_stateMachine.isNonZSLCaptureRunning()&&
+       (pMetaData->is_meta_valid == 1) &&
+       !pme->mLongshotEnabled) {
+       //Make shutter call back in non ZSL mode once raw frame is received from VFE.
+       pme->playShutter();
     }
 
     if (pMetaData->is_preview_frame_skip_valid) {
@@ -1600,25 +1372,16 @@ void QCamera2HardwareInterface::metadata_stream_cb_routine(mm_camera_super_buf_t
     if(pMetaData->is_ae_params_valid) {
         pme->mExifParams.ae_params = pMetaData->ae_params;
         pme->mFlashNeeded = pMetaData->ae_params.flash_needed ? true : false;
-        qcamera_sm_internal_evt_payload_t *payload =
-            (qcamera_sm_internal_evt_payload_t *)malloc(sizeof(qcamera_sm_internal_evt_payload_t));
-        if (NULL != payload) {
-            memset(payload, 0, sizeof(qcamera_sm_internal_evt_payload_t));
-            payload->evt_type = QCAMERA_INTERNAL_EVT_AE_UPDATE;
-            payload->ae_data = pMetaData->ae_params;
-            int32_t rc = pme->processEvt(QCAMERA_SM_EVT_EVT_INTERNAL, payload);
-            if (rc != NO_ERROR) {
-                ALOGE("%s: processEvt ae_update failed", __func__);
-                free(payload);
-                payload = NULL;
-            }
-        } else {
-            ALOGE("%s: No memory for ae_update qcamera_sm_internal_evt_payload_t", __func__);
-        }
     }
-
     if(pMetaData->is_awb_params_valid) {
         pme->mExifParams.awb_params = pMetaData->awb_params;
+    }
+    if(pMetaData->is_focus_valid) {
+        pme->mExifParams.af_params = pMetaData->focus_data;
+    }
+
+    if (pMetaData->is_awb_params_valid) {
+        CDBG("%s, metadata for awb params.", __func__);
         qcamera_sm_internal_evt_payload_t *payload =
             (qcamera_sm_internal_evt_payload_t *)malloc(sizeof(qcamera_sm_internal_evt_payload_t));
         if (NULL != payload) {
@@ -1630,38 +1393,35 @@ void QCamera2HardwareInterface::metadata_stream_cb_routine(mm_camera_super_buf_t
                 ALOGE("%s: processEvt awb_update failed", __func__);
                 free(payload);
                 payload = NULL;
+
             }
         } else {
             ALOGE("%s: No memory for awb_update qcamera_sm_internal_evt_payload_t", __func__);
         }
     }
-    if(pMetaData->is_focus_valid) {
-        pme->mExifParams.af_params = pMetaData->focus_data;
+
+    /* Update 3A debug info */
+    if (pMetaData->is_ae_exif_debug_valid) {
+        pme->mExifParams.ae_debug_params_valid = TRUE;
+        pme->mExifParams.ae_debug_params = pMetaData->ae_exif_debug_params;
     }
-    if (pme->mExifParams.debug_params) {
-        /* Update 3A debug info */
-        if (pMetaData->is_ae_exif_debug_valid) {
-            pme->mExifParams.debug_params->ae_debug_params_valid = TRUE;
-            pme->mExifParams.debug_params->ae_debug_params = pMetaData->ae_exif_debug_params;
-        }
-        if (pMetaData->is_awb_exif_debug_valid) {
-            pme->mExifParams.debug_params->awb_debug_params_valid = TRUE;
-            pme->mExifParams.debug_params->awb_debug_params = pMetaData->awb_exif_debug_params;
-        }
-        if (pMetaData->is_af_exif_debug_valid) {
-            pme->mExifParams.debug_params->af_debug_params_valid = TRUE;
-            pme->mExifParams.debug_params->af_debug_params = pMetaData->af_exif_debug_params;
-        }
-        if (pMetaData->is_asd_exif_debug_valid) {
-            pme->mExifParams.debug_params->asd_debug_params_valid = TRUE;
-            pme->mExifParams.debug_params->asd_debug_params = pMetaData->asd_exif_debug_params;
-        }
-        if (pMetaData->is_stats_buffer_exif_debug_valid) {
-            pme->mExifParams.debug_params->stats_debug_params_valid = TRUE;
-            pme->mExifParams.debug_params->stats_debug_params =
-                    pMetaData->stats_buffer_exif_debug_params;
-        }
+    if (pMetaData->is_awb_exif_debug_valid) {
+        pme->mExifParams.awb_debug_params_valid = TRUE;
+        pme->mExifParams.awb_debug_params = pMetaData->awb_exif_debug_params;
     }
+    if (pMetaData->is_af_exif_debug_valid) {
+        pme->mExifParams.af_debug_params_valid = TRUE;
+        pme->mExifParams.af_debug_params = pMetaData->af_exif_debug_params;
+    }
+    if (pMetaData->is_asd_exif_debug_valid) {
+        pme->mExifParams.asd_debug_params_valid = TRUE;
+        pme->mExifParams.asd_debug_params = pMetaData->asd_exif_debug_params;
+    }
+    if (pMetaData->is_stats_buffer_exif_debug_valid) {
+        pme->mExifParams.stats_debug_params_valid = TRUE;
+        pme->mExifParams.stats_debug_params = pMetaData->stats_buffer_exif_debug_params;
+    }
+
     /*Update Sensor info*/
     if (pMetaData->is_sensor_params_valid) {
         pme->mExifParams.sensor_params = pMetaData->sensor_params;
@@ -1684,35 +1444,12 @@ void QCamera2HardwareInterface::metadata_stream_cb_routine(mm_camera_super_buf_t
         } else {
             ALOGE("%s: No memory for prep_snapshot qcamera_sm_internal_evt_payload_t", __func__);
         }
-        /*Update scene capture type info*/
-        if (pme->mExifParams.debug_params) {
-            pme->mExifParams.debug_params->asd_debug_params_valid = TRUE;
-        }
-        pme->mExifParams.scene= pMetaData->scene;
     }
 
     if (pMetaData->is_chromatix_mobicat_af_valid) {
         memcpy(pme->mExifParams.af_mobicat_params,
             pMetaData->chromatix_mobicat_af_data.private_mobicat_af_data,
             sizeof(pme->mExifParams.af_mobicat_params));
-    }
-
-    if (pMetaData->is_focus_pos_info_valid) {
-        qcamera_sm_internal_evt_payload_t *payload =
-            (qcamera_sm_internal_evt_payload_t *)malloc(sizeof(qcamera_sm_internal_evt_payload_t));
-        if (NULL != payload) {
-            memset(payload, 0, sizeof(qcamera_sm_internal_evt_payload_t));
-            payload->evt_type = QCAMERA_INTERNAL_EVT_FOCUS_POS_UPDATE;
-            payload->focus_pos = pMetaData->cur_pos_info;
-            int32_t rc = pme->processEvt(QCAMERA_SM_EVT_EVT_INTERNAL, payload);
-            if (rc != NO_ERROR) {
-                ALOGE("%s: processEvt focus_pos_update failed", __func__);
-                free(payload);
-                payload = NULL;
-            }
-        } else {
-            ALOGE("%s: No memory for focus_pos_update qcamera_sm_internal_evt_payload_t", __func__);
-        }
     }
 
     stream->bufDone(frame->buf_idx);
@@ -1807,10 +1544,13 @@ void QCamera2HardwareInterface::dumpJpegToFile(const void *data,
                 mDumpFrmCnt = 0;
             }
             if (mDumpFrmCnt <= frm_num) {
-                snprintf(buf, sizeof(buf),
-                         "/data/misc/camera/%d_%d.jpg", mDumpFrmCnt, index);
+#ifdef USE_KK_CODE
+                snprintf(buf, sizeof(buf), "/data/%d_%d.jpg", mDumpFrmCnt, index);
+#else
+                snprintf(buf, sizeof(buf), "/data/misc/camera/%d_%d.jpg", mDumpFrmCnt, index);
+#endif
                 if (true == m_bIntEvtPending) {
-                    strlcpy(m_BackendFileName, buf, sizeof(buf));
+                    strncpy(m_BackendFileName, buf, sizeof(buf));
                     mBackendFileSize = size;
                 }
 
@@ -1870,7 +1610,11 @@ void QCamera2HardwareInterface::dumpMetadataToFile(QCameraStream *stream,
             time (&current_time);
             timeinfo = localtime (&current_time);
             if (timeinfo != NULL)
+#ifdef USE_KK_CODE
+                strftime (timeBuf, sizeof(timeBuf),"/data/%Y%m%d%H%M%S", timeinfo);
+#else
                 strftime (timeBuf, sizeof(timeBuf),"/data/misc/camera/%Y%m%d%H%M%S", timeinfo);
+#endif
             String8 filePath(timeBuf);
             snprintf(buf, sizeof(buf), "%um_%s_%d.bin", dumpFrmCnt, type, frame->frame_idx);
             filePath.append(buf);
@@ -1981,8 +1725,11 @@ void QCamera2HardwareInterface::dumpFrameToFile(QCameraStream *stream,
                     stream->getFrameOffset(offset);
 
                     if (timeinfo != NULL)
-                        strftime (timeBuf, sizeof(timeBuf),
-                                  "/data/misc/camera/%Y%m%d%H%M%S", timeinfo);
+#ifdef USE_KK_CODE
+                        strftime (timeBuf, sizeof(timeBuf),"/data/%Y%m%d%H%M%S", timeinfo);
+#else
+                        strftime (timeBuf, sizeof(timeBuf),"/data/misc/camera/%Y%m%d%H%M%S", timeinfo);
+#endif
                     String8 filePath(timeBuf);
                     switch (dump_type) {
                     case QCAMERA_DUMP_FRM_PREVIEW:
@@ -2189,30 +1936,31 @@ bool QCameraCbNotifier::matchSnapshotNotifications(void *data,
 }
 
 /*===========================================================================
-* FUNCTION   : matchTimestampNotifications
-*
-* DESCRIPTION: matches timestamp data callbacks
-*
-* PARAMETERS :
-*   @data      : data to match
-*   @user_data : context data
-*
-* RETURN     : bool match
-*              true - match found
-*              false- match not found
-*==========================================================================*/
-bool QCameraCbNotifier::matchTimestampNotifications(void *data, void * /*user_data*/)
+ * FUNCTION   : matchPreviewNotifications
+ *
+ * DESCRIPTION: matches preview data callbacks
+ *
+ * PARAMETERS :
+ *   @data      : data to match
+ *   @user_data : context data
+ *
+ * RETURN     : bool match
+ *              true - match found
+ *              false- match not found
+ *==========================================================================*/
+bool QCameraCbNotifier::matchPreviewNotifications(void *data,
+        void */*user_data*/)
 {
     qcamera_callback_argm_t *arg = ( qcamera_callback_argm_t * ) data;
     if (NULL != arg) {
-        if ((QCAMERA_DATA_TIMESTAMP_CALLBACK == arg->cb_type) &&
-            (CAMERA_MSG_VIDEO_FRAME == arg->msg_type)) {
+        if ((QCAMERA_DATA_CALLBACK == arg->cb_type) &&
+                (CAMERA_MSG_PREVIEW_FRAME == arg->msg_type)) {
             return true;
         }
     }
+
     return false;
 }
-
 
 /*===========================================================================
  * FUNCTION   : cbNotifyRoutine
@@ -2459,27 +2207,28 @@ void QCameraCbNotifier::setCallbacks(camera_notify_callback notifyCb,
 }
 
 /*===========================================================================
-* FUNCTION   : flushVideoNotifications
-*
-* DESCRIPTION: flush all pending video notifications
-*              from the notifier queue
-*
-* PARAMETERS : None
-*
-* RETURN     : int32_t type of status
-*              NO_ERROR  -- success
-*              none-zero failure code
-*==========================================================================*/
-int32_t QCameraCbNotifier::flushVideoNotifications()
+ * FUNCTION   : flushPreviewNotifications
+ *
+ * DESCRIPTION: flush all pending preview notifications
+ *              from the notifier queue
+ *
+ * PARAMETERS : None
+ *
+ * RETURN     : int32_t type of status
+ *              NO_ERROR  -- success
+ *              none-zero failure code
+ *==========================================================================*/
+int32_t QCameraCbNotifier::flushPreviewNotifications()
 {
     if (!mActive) {
-        ALOGE("notify thread is not active");
+        ALOGE("%s: notify thread is not active", __func__);
         return UNKNOWN_ERROR;
     }
-    mDataQ.flushNodes(matchTimestampNotifications);
+
+    mDataQ.flushNodes(matchPreviewNotifications);
+
     return NO_ERROR;
 }
-
 
 /*===========================================================================
  * FUNCTION   : startSnapshots

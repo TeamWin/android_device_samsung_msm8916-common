@@ -36,8 +36,6 @@
 #include <poll.h>
 #include <linux/media.h>
 #include <signal.h>
-#include <cutils/properties.h>
-#include <stdlib.h>
 #include <media/msm_cam_sensor.h>
 #include <cutils/properties.h>
 #include <stdlib.h>
@@ -49,13 +47,11 @@
 
 static pthread_mutex_t g_intf_lock = PTHREAD_MUTEX_INITIALIZER;
 
-static mm_camera_ctrl_t g_cam_ctrl = {0, {{0}}, {0}, {{0}}, {0}};
+static mm_camera_ctrl_t g_cam_ctrl = {0, {{0}}, {0}, {{0}}};
 
 static pthread_mutex_t g_handler_lock = PTHREAD_MUTEX_INITIALIZER;
 static uint16_t g_handler_history_count = 0; /* history count for handler */
 volatile uint32_t gMmCameraIntfLogLevel = 0;
-
-#define CAM_SENSOR_FORMAT_MASK (1U<<25) // 25th bit tells whether its YUV sensor or not
 
 /*===========================================================================
  * FUNCTION   : mm_camera_util_generate_handler
@@ -1374,7 +1370,6 @@ void get_sensor_info()
             uint32_t temp;
             uint32_t mount_angle;
             uint32_t facing;
-            uint8_t is_yuv;
 
             memset(&entity, 0, sizeof(entity));
             entity.id = num_entities++;
@@ -1388,17 +1383,12 @@ void get_sensor_info()
                 entity.group_id == MSM_CAMERA_SUBDEV_SENSOR) {
                 temp = entity.flags >> 8;
                 mount_angle = (temp & 0xFF) * 90;
-                facing = (temp & 0xFF00) >> 8;
-                is_yuv = ((entity.flags & CAM_SENSOR_FORMAT_MASK) ?
-                        CAM_SENSOR_YUV:CAM_SENSOR_RAW);
-                ALOGD("index = %u flag = %x mount_angle = %u "
-                        "facing = %u is_yuv = %u\n",
-                        (unsigned int)num_cameras, (unsigned int)temp,
-                        (unsigned int)mount_angle, (unsigned int)facing,
-                        (uint8_t)is_yuv);
+                facing = (temp >> 8);
+                ALOGD("index = %u flag = %x mount_angle = %u facing = %u\n",
+                    (unsigned int)num_cameras, (unsigned int)temp,
+                    (unsigned int)mount_angle, (unsigned int)facing);
                 g_cam_ctrl.info[num_cameras].facing = (int)facing;
                 g_cam_ctrl.info[num_cameras].orientation = (int)mount_angle;
-                g_cam_ctrl.is_yuv[num_cameras] = is_yuv;
                 num_cameras++;
                 continue;
             }
@@ -1429,20 +1419,16 @@ void sort_camera_info(int num_cam)
 {
     int idx = 0, i;
     struct camera_info temp_info[MM_CAMERA_MAX_NUM_SENSORS];
-    uint8_t temp_is_yuv[MM_CAMERA_MAX_NUM_SENSORS];
     char temp_dev_name[MM_CAMERA_MAX_NUM_SENSORS][MM_CAMERA_DEV_NAME_LEN];
     memset(temp_info, 0, sizeof(temp_info));
     memset(temp_dev_name, 0, sizeof(temp_dev_name));
-    memset(temp_is_yuv, 0, sizeof(temp_is_yuv));
 
     /* firstly save the back cameras info*/
     for (i = 0; i < num_cam; i++) {
         if (g_cam_ctrl.info[i].facing == CAMERA_FACING_BACK) {
             temp_info[idx] = g_cam_ctrl.info[i];
-            temp_is_yuv[idx] = g_cam_ctrl.is_yuv[i];
-            CDBG("%s: Found Back Camera: i: %d idx: %d", __func__, i, idx);
             memcpy(temp_dev_name[idx++],g_cam_ctrl.video_dev_name[i],
-                    MM_CAMERA_DEV_NAME_LEN);
+                MM_CAMERA_DEV_NAME_LEN);
         }
     }
 
@@ -1450,25 +1436,13 @@ void sort_camera_info(int num_cam)
     for (i = 0; i < num_cam; i++) {
         if (g_cam_ctrl.info[i].facing == CAMERA_FACING_FRONT) {
             temp_info[idx] = g_cam_ctrl.info[i];
-            temp_is_yuv[idx] = g_cam_ctrl.is_yuv[i];
-            CDBG("%s: Found Front Camera: i: %d idx: %d", __func__, i, idx);
             memcpy(temp_dev_name[idx++],g_cam_ctrl.video_dev_name[i],
                 MM_CAMERA_DEV_NAME_LEN);
         }
     }
 
-    if (idx == num_cam) {
-        memcpy(g_cam_ctrl.info, temp_info, sizeof(temp_info));
-        memcpy(g_cam_ctrl.is_yuv, temp_is_yuv, sizeof(temp_is_yuv));
-        memcpy(g_cam_ctrl.video_dev_name, temp_dev_name, sizeof(temp_dev_name));
-        for (i = 0; i < num_cam; i++) {
-            CDBG_HIGH("%s: Camera id: %d facing: %d, is_yuv: %d", __func__,
-                i, g_cam_ctrl.info[i].facing, g_cam_ctrl.is_yuv[i]);
-        }
-    } else {
-        ALOGE("%s: Failed to sort all cameras!", __func__);
-        ALOGE("%s: Number of cameras %d sorted %d", __func__, num_cam, idx);
-    }
+    memcpy(g_cam_ctrl.info, temp_info, sizeof(temp_info));
+    memcpy(g_cam_ctrl.video_dev_name, temp_dev_name, sizeof(temp_dev_name));
     return;
 }
 
@@ -1495,6 +1469,7 @@ uint8_t get_num_of_cameras()
     uint32_t temp;
     uint32_t log_level;
     uint32_t debug_mask;
+    int8_t fixed_num_cameras = 0;
 
     /*  Higher 4 bits : Value of Debug log level (Default level is 1 to print all CDBG_HIGH)
         Lower 28 bits : Control mode for sub module logging(Only 3 sub modules in HAL)
@@ -1514,9 +1489,8 @@ uint8_t get_num_of_cameras()
 
     property_get("vold.decrypt", prop, "0");
     int decrypt = atoi(prop);
-    if (decrypt == 1) {
-        return 0;
-    }
+    if (decrypt == 1)
+     return 0;
 
     /* lock the mutex */
     pthread_mutex_lock(&g_intf_lock);
@@ -1624,7 +1598,7 @@ uint8_t get_num_of_cameras()
                 break;
             }
             if(entity.type == MEDIA_ENT_T_DEVNODE_V4L && entity.group_id == QCAMERA_VNODE_GROUP_ID) {
-                strlcpy(g_cam_ctrl.video_dev_name[num_cameras],
+                strncpy(g_cam_ctrl.video_dev_name[num_cameras],
                      entity.name, sizeof(entity.name));
                 break;
             }
@@ -1637,6 +1611,22 @@ uint8_t get_num_of_cameras()
         close(dev_fd);
         dev_fd = 0;
     }
+
+    /* In L AOSP MAX camera defined as 4, compared to 2 in KK
+     * Due to that and multimode architecture, camera switching on 8x26 target
+     * will fail on KK-based camera as there are non-zero specific profile
+     * exists in dtsi file. These profiles are needed for JB-based camera.
+     * To support JB and KK camera projects with common kernel, we have
+     * introduced a setprop where user can set max number of cameras.
+     * This'll resolve the issue for accessing incorrect camera profile.
+    */
+    property_get("persist.camera.num_cameras",prop,"0");
+    fixed_num_cameras = atoi(prop);
+    if ( (fixed_num_cameras > 0)&& (num_cameras > fixed_num_cameras)) {
+        num_cameras = fixed_num_cameras;
+        CDBG_HIGH("%s: restricted num of cameras to: %d\n",__func__, num_cameras);
+    }
+
     g_cam_ctrl.num_cam = num_cameras;
 
     get_sensor_info();
@@ -1729,43 +1719,6 @@ static mm_camera_ops_t mm_camera_ops = {
 };
 
 /*===========================================================================
- * FUNCTION   : check_cam_access
- *
- * DESCRIPTION: checks if multiple cameras can be opened simultaneously
- *
- * PARAMETERS : camera id
- *
- * RETURN     : true/false
- *==========================================================================*/
-uint8_t check_cam_access(uint8_t camera_idx)
-{
-    uint8_t allow = FALSE;
-    char prop[PROPERTY_VALUE_MAX];
-
-    pthread_mutex_lock(&g_intf_lock);
-    //Assuming there are a max of 2 sensors , allow simultaneous access only
-    //if we have atleast 1 YUV sensor. Both BAYER is not supported.
-    //TBD : For >2 sensors, we have to check sensor type along with VFE
-    //capability and is not tested so far. So, return TRUE for now.
-    if (g_cam_ctrl.num_cam == 2 && camera_idx < 2) {
-        memset(prop, 0, sizeof(prop));
-        property_get("persist.camera.pip.support", prop, "1");
-        if (g_cam_ctrl.cam_obj[1 - camera_idx] == NULL) {
-            //Other camera device not opened. So, blindly allow this camera access.
-            allow = TRUE;
-        } else if (atoi(prop)) {
-            if (g_cam_ctrl.is_yuv[camera_idx] || g_cam_ctrl.is_yuv[1 - camera_idx]) {
-                allow = TRUE;
-            }
-        }
-    } else {
-        allow = TRUE;
-    }
-    pthread_mutex_unlock(&g_intf_lock);
-    return allow;
-}
-
-/*===========================================================================
  * FUNCTION   : camera_open
  *
  * DESCRIPTION: open a camera by camera index
@@ -1811,8 +1764,14 @@ mm_camera_vtbl_t * camera_open(uint8_t camera_idx)
     cam_obj->vtbl.camera_handle = cam_obj->my_hdl; /* set handler */
     cam_obj->vtbl.ops = &mm_camera_ops;
     pthread_mutex_init(&cam_obj->cam_lock, NULL);
+    /* unlock global interface lock, if not, in dual camera use case,
+      * current open will block operation of another opened camera obj*/
+    pthread_mutex_lock(&cam_obj->cam_lock);
+    pthread_mutex_unlock(&g_intf_lock);
 
     rc = mm_camera_open(cam_obj);
+
+    pthread_mutex_lock(&g_intf_lock);
     if(rc != 0) {
         CDBG_ERROR("%s: mm_camera_open err = %d", __func__, rc);
         pthread_mutex_destroy(&cam_obj->cam_lock);

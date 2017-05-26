@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -74,9 +74,8 @@ int32_t mm_stream_buf_done(mm_stream_t * my_obj,
 int32_t mm_stream_get_queued_buf_count(mm_stream_t * my_obj);
 
 int32_t mm_stream_calc_offset(mm_stream_t *my_obj);
-int32_t mm_stream_calc_offset_preview(cam_stream_info_t *stream_info,
+int32_t mm_stream_calc_offset_preview(cam_format_t fmt,
                                       cam_dimension_t *dim,
-                                      cam_padding_info_t *padding,
                                       cam_stream_buf_plane_info_t *buf_planes);
 int32_t mm_stream_calc_offset_post_view(cam_format_t fmt,
                                       cam_dimension_t *dim,
@@ -461,28 +460,18 @@ int32_t mm_stream_fsm_inited(mm_stream_t *my_obj,
 {
     int32_t rc = 0;
     char dev_name[MM_CAMERA_DEV_NAME_LEN];
-    char t_devname[MM_CAMERA_DEV_NAME_LEN];
-    const char *temp_dev_name = NULL;
 
     CDBG("%s: E, my_handle = 0x%x, fd = %d, state = %d",
          __func__, my_obj->my_hdl, my_obj->fd, my_obj->state);
-
     switch(evt) {
     case MM_STREAM_EVT_ACQUIRE:
-        if ((NULL == my_obj->ch_obj) ||
-                ((NULL != my_obj->ch_obj) && (NULL == my_obj->ch_obj->cam_obj))) {
+        if ((NULL == my_obj->ch_obj) || (NULL == my_obj->ch_obj->cam_obj)) {
             CDBG_ERROR("%s: NULL channel or camera obj\n", __func__);
             rc = -1;
             break;
         }
-        temp_dev_name = mm_camera_util_get_dev_name(my_obj->ch_obj->cam_obj->my_hdl);
-        if (temp_dev_name == NULL) {
-            CDBG_ERROR("%s: dev name is NULL",__func__);
-            rc = -1;
-            break;
-        }
-        strlcpy(t_devname, temp_dev_name, sizeof(t_devname));
-        snprintf(dev_name, sizeof(dev_name), "/dev/%s",t_devname );
+        snprintf(dev_name, sizeof(dev_name), "/dev/%s",
+                 mm_camera_util_get_dev_name(my_obj->ch_obj->cam_obj->my_hdl));
 
         my_obj->fd = open(dev_name, O_RDWR | O_NONBLOCK);
         if (my_obj->fd <= 0) {
@@ -1311,7 +1300,7 @@ int32_t mm_stream_qbuf(mm_stream_t *my_obj, mm_camera_buf_def_t *buf)
                 my_obj, my_obj->stream_info->stream_type);
         }
     } else {
-        CDBG_HIGH("%s: VIDIOC_QBUF buf_index %d,stream type %d,frame_idx %d,queued cnt %d",
+        CDBG("%s: VIDIOC_QBUF buf_index %d,stream type %d,frame_idx %d,queued cnt %d",
                    __func__,buffer.index,
                    my_obj->stream_info->stream_type,
                    buf->frame_idx, my_obj->queued_buffer_count);
@@ -1802,33 +1791,21 @@ uint32_t mm_stream_get_v4l2_fmt(cam_format_t fmt)
  *              0  -- success
  *              -1 -- failure
  *==========================================================================*/
-int32_t mm_stream_calc_offset_preview(cam_stream_info_t *stream_info,
+int32_t mm_stream_calc_offset_preview(cam_format_t fmt,
                                       cam_dimension_t *dim,
-                                      cam_padding_info_t *padding,
                                       cam_stream_buf_plane_info_t *buf_planes)
 {
     int32_t rc = 0;
     int stride = 0, scanline = 0;
 
-    uint32_t width_padding = 0;
-    uint32_t height_padding = 0;
-
-    switch (stream_info->fmt) {
+    switch (fmt) {
     case CAM_FORMAT_YUV_420_NV12:
     case CAM_FORMAT_YUV_420_NV21:
         /* 2 planes: Y + CbCr */
         buf_planes->plane_info.num_planes = 2;
 
-        if (stream_info->stream_type != CAM_STREAM_TYPE_OFFLINE_PROC) {
-            width_padding =  CAM_PAD_TO_32;
-            height_padding = CAM_PAD_TO_2;
-        } else {
-            width_padding =  padding->width_padding;
-            height_padding = padding->height_padding;
-        }
-
-        stride = PAD_TO_SIZE(dim->width, width_padding);
-        scanline = PAD_TO_SIZE(dim->height, height_padding);
+        stride = PAD_TO_SIZE(dim->width, CAM_PAD_TO_16);
+        scanline = PAD_TO_SIZE(dim->height, CAM_PAD_TO_2);
 
         buf_planes->plane_info.mp[0].offset = 0;
         buf_planes->plane_info.mp[0].len = (uint32_t)(stride * scanline);
@@ -1839,8 +1816,8 @@ int32_t mm_stream_calc_offset_preview(cam_stream_info_t *stream_info,
         buf_planes->plane_info.mp[0].width = dim->width;
         buf_planes->plane_info.mp[0].height = dim->height;
 
-        stride = PAD_TO_SIZE(dim->width, width_padding);
-        scanline = PAD_TO_SIZE(dim->height / 2, height_padding);
+        stride = PAD_TO_SIZE(dim->width, CAM_PAD_TO_16);
+        scanline = PAD_TO_SIZE(dim->height / 2, CAM_PAD_TO_2);
         buf_planes->plane_info.mp[1].offset = 0;
         buf_planes->plane_info.mp[1].len =
             (uint32_t)(stride * scanline);
@@ -1997,7 +1974,7 @@ int32_t mm_stream_calc_offset_preview(cam_stream_info_t *stream_info,
         break;
     default:
         CDBG_ERROR("%s: Invalid cam_format for preview %d",
-                   __func__, stream_info->fmt);
+                   __func__, fmt);
         rc = -1;
         break;
     }
@@ -2778,9 +2755,8 @@ int32_t mm_stream_calc_offset_postproc(cam_stream_info_t *stream_info,
 
     switch (type) {
     case CAM_STREAM_TYPE_PREVIEW:
-        rc = mm_stream_calc_offset_preview(stream_info,
+        rc = mm_stream_calc_offset_preview(stream_info->fmt,
                                            &stream_info->dim,
-                                           padding,
                                            plns);
         break;
     case CAM_STREAM_TYPE_POSTVIEW:
@@ -2835,7 +2811,7 @@ int32_t mm_stream_calc_offset(mm_stream_t *my_obj)
     int32_t rc = 0;
 
     cam_dimension_t dim = my_obj->stream_info->dim;
-    if (my_obj->stream_info->pp_config.feature_mask & CAM_QCOM_FEATURE_ROTATION &&
+    if (my_obj->stream_info->pp_config.feature_mask & CAM_QCOM_FEATURE_CPP &&
         my_obj->stream_info->stream_type != CAM_STREAM_TYPE_VIDEO) {
         if (my_obj->stream_info->pp_config.rotation == ROTATE_90 ||
             my_obj->stream_info->pp_config.rotation == ROTATE_270) {
@@ -2847,9 +2823,8 @@ int32_t mm_stream_calc_offset(mm_stream_t *my_obj)
 
     switch (my_obj->stream_info->stream_type) {
     case CAM_STREAM_TYPE_PREVIEW:
-        rc = mm_stream_calc_offset_preview(my_obj->stream_info,
+        rc = mm_stream_calc_offset_preview(my_obj->stream_info->fmt,
                                            &dim,
-                                           &my_obj->padding_info,
                                            &my_obj->stream_info->buf_planes);
         break;
     case CAM_STREAM_TYPE_POSTVIEW:
