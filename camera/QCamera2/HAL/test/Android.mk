@@ -28,9 +28,9 @@ LOCAL_CFLAGS += -DUSE_JB_MR1
 
 endif
 
-ifneq ($(call is-platform-sdk-version-at-least,20),true)
+#ifneq ($(call is-platform-sdk-version-at-least,20),true)
 LOCAL_CFLAGS += -DUSE_KK_CODE
-endif
+#endif
 
 LOCAL_C_INCLUDES += \
     frameworks/base/include/ui \

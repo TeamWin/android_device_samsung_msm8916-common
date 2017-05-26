@@ -21,9 +21,9 @@ ifeq ($(strip $(TARGET_USES_ION)),true)
     LOCAL_CFLAGS += -DUSE_ION
 endif
 
-ifneq ($(call is-platform-sdk-version-at-least,20),true)
+#ifneq ($(call is-platform-sdk-version-at-least,20),true)
 LOCAL_CFLAGS += -DUSE_KK_CODE
-endif
+#endif
 
 
 ifeq ($(call is-board-platform-in-list, msm8974),true)
