@@ -30,11 +30,6 @@ LOCAL_PATH := device/samsung/msm8916-common
 # Overlays
 DEVICE_PACKAGE_OVERLAYS += $(LOCAL_PATH)/overlay
 
-# Audio configurations
-PRODUCT_COPY_FILES += \
-	$(LOCAL_PATH)/configs/audio/audio_effects.conf:system/vendor/etc/audio_effects.conf \
-	$(LOCAL_PATH)/configs/audio/audio_policy.conf:system/etc/audio_policy.conf
-
 # Data configuration files
 PRODUCT_COPY_FILES += \
 	$(LOCAL_PATH)/configs/data/dsi_config.xml:system/etc/data/dsi_config.xml \
