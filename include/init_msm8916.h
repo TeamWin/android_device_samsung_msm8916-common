@@ -44,8 +44,8 @@
 #define LTE_DEVICE  2
 #define WIFI_DEVICE 3
 
-#define VERSION_RELEASE "6.0.1"
-#define BUILD_ID	"MOB31T"
+#define VERSION_RELEASE "7.1.2"
+#define BUILD_ID	"N2G47O"
 
 
 void init_target_properties();
