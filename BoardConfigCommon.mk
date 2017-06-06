@@ -232,8 +232,9 @@ TARGET_RECOVERY_DENSITY 			:= hdpi
 TARGET_RECOVERY_QCOM_RTC_FIX := true
 
 ifeq ($(RECOVERY_VARIANT),twrp)
-	TARGET_RECOVERY_FSTAB := device/samsung/msm8916-common/recovery/twrp.fstab
+	BOARD_GLOBAL_CFLAGS += -DTW_USE_MINUI_CUSTOM_FONTS
 	PRODUCT_COPY_FILES += $(TARGET_OUT_SHARED_LIBRARIES)/libcryptfs_hw.so:$(TARGET_OUT_VENDOR_SHARED_LIBRARIES)/libcryptfs_hw.so
+	TARGET_RECOVERY_FSTAB := device/samsung/msm8916-common/recovery/twrp.fstab
 else
 	TARGET_RECOVERY_FSTAB := device/samsung/msm8916-common/recovery/recovery.fstab
 endif
