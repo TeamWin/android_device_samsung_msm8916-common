@@ -37,3 +37,7 @@ TARGET_RECOVERY_FSTAB := device/samsung/msm8916-common/recovery/recovery.fstab
 ifeq ($(RECOVERY_VARIANT),twrp)
 	BOARD_GLOBAL_CFLAGS += -DTW_USE_MINUI_CUSTOM_FONTS
 endif
+
+ifeq ($(RECOVERY_VARIANT),twrp)
+	BOARD_GLOBAL_CFLAGS += -DTW_USE_MINUI_CUSTOM_FONTS
+endif
