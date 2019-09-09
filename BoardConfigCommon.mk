@@ -98,13 +98,6 @@ BOARD_CHARGER_ENABLE_SUSPEND    := true
 BOARD_CHARGER_SHOW_PERCENTAGE   := true
 BOARD_CHARGER_DISABLE_INIT_BLANK := true
 
-# CMHW
-BOARD_USES_CYANOGEN_HARDWARE := true
-BOARD_HARDWARE_CLASS += \
-	hardware/lineage/lineagehw \
-	hardware/samsung/lineagehw \
-	$(LOCAL_PATH)/lineagehw
-
 # Display
 MAX_EGL_CACHE_KEY_SIZE := 12*1024
 MAX_EGL_CACHE_SIZE := 2048*1024
@@ -269,9 +262,6 @@ TARGET_LD_SHIM_LIBS := \
     /system/lib/hw/camera.vendor.msm8916.so|libcamera_shim.so \
     /system/vendor/lib/libizat_core.so|libshim_gps.so \
     /system/vendor/lib/libqomx_jpegenc.so|libboringssl-compat.so
-
-# Snapdragon LLVM
-TARGET_USE_SDCLANG := true
 
 # Time services
 BOARD_USES_QC_TIME_SERVICES := true
