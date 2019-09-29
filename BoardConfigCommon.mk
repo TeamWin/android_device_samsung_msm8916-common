@@ -103,7 +103,6 @@ TARGET_KERNEL_CONFIG := msm8916_sec_defconfig
 TARGET_KERNEL_SELINUX_CONFIG := selinux_defconfig
 TARGET_KERNEL_SELINUX_LOG_CONFIG := selinux_log_defconfig
 TARGET_KERNEL_SOURCE := kernel/samsung/msm8916
-TARGET_CUSTOM_DTBTOOL := dtbToolLineage
 TARGET_OTA_ASSERT_DEVICE := j5lte,J5ltexx,j5ltechn,j5nlte,j5nltexx,j53gxx,j5xnlte,j5xlte
 
 # Kernel - Toolchain
@@ -140,7 +139,6 @@ TARGET_RECOVERY_DENSITY	:= hdpi
 TARGET_RECOVERY_FSTAB	:= device/samsung/msm8916-common/recovery/recovery.fstab
 TARGET_RECOVERY_PIXEL_FORMAT	:= "RGB_565"
 TARGET_RECOVERY_QCOM_RTC_FIX	:= true
-TARGET_CRYPTFS_HW_PATH	:= vendor/qcom/cryptfs_hw
 
 # Recovery - TWRP
 TW_BRIGHTNESS_PATH := "/sys/class/leds/lcd-backlight/brightness"
@@ -158,6 +156,7 @@ TW_NO_USB_STORAGE := false
 TW_TARGET_USES_QCOM_BSP := false
 TW_THEME := portrait_hdpi
 TW_EXCLUDE_SUPERSU := false
+TW_USE_TOOLBOX := true
 
 ifeq ($(RECOVERY_VARIANT),twrp)
 	BOARD_GLOBAL_CFLAGS += -DTW_USE_MINUI_CUSTOM_FONTS
