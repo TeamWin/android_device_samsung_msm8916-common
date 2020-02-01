@@ -3,6 +3,8 @@
 /data          ext4      /dev/block/bootdevice/by-name/userdata      length=-16384
 /cache         ext4      /dev/block/bootdevice/by-name/cache
 /system        ext4      /dev/block/bootdevice/by-name/system
+/system_image  emmc      /dev/block/bootdevice/by-name/system
+/storage       ext4	 /data/media/0				     flags=display="Internal Storage";usermrf;backup=1;fsflags="bind";removable
 /misc          emmc      /dev/block/bootdevice/by-name/fota
 /preload       ext4	 /dev/block/bootdevice/by-name/hidden	     flags=display="Hidden";backup=1;wipeingui
 /persist       ext4	 /dev/block/bootdevice/by-name/persist	     flags=display="Persist";backup=1;wipeingui
@@ -16,5 +18,5 @@
 /qsee	       emmc      /dev/block/bootdevice/by-name/qsee	     flags=display="Qsee";backup=1
 /rpm	       emmc      /dev/block/bootdevice/by-name/rpm	     flags=display="Rpm";backup=1
 /sec	       emmc      /dev/block/bootdevice/by-name/sec	     flags=display="Sec";backup=1
-/external_sd   auto      /dev/block/mmcblk1p1 /dev/block/mmcblk1     flags=display="Micro SD card";storage;wipeingui;removable
-/usb-otg       auto       /dev/block/sda1         /dev/block/sda     flags=display="USB-OTG";storage;wipeingui;removable
+/sdcard1       auto      /dev/block/mmcblk1p1 /dev/block/mmcblk1     flags=display="Micro SD card";storage;wipeingui;removable
+/usb-otg       auto      /dev/block/sda1         /dev/block/sda      flags=display="USB-OTG";storage;wipeingui;removable
