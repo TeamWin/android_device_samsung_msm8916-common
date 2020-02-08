@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "0160e9bb_d48114a5",
+        "filename": "BoardConfigCommon.mk",
+        "patchSetId": 1
+      },
+      "lineNbr": 163,
+      "author": {
+        "id": 1
+      },
+      "writtenOn": "2020-02-08T22:19:14Z",
+      "side": 1,
+      "message": "This should not be set outside of test builds. Please remove.",
+      "revId": "e26faa47b941c633273e7978a44b2adfcca0d060",
+      "serverId": "9c1c7d72-6534-4d44-b0ea-39f63e804833",
+      "unresolved": true
+    }
+  ]
+}
