@@ -141,7 +141,6 @@ TARGET_RECOVERY_DENSITY	:= hdpi
 TARGET_RECOVERY_FSTAB	:= device/samsung/msm8916-common/recovery/recovery.fstab
 TARGET_RECOVERY_PIXEL_FORMAT	:= "RGB_565"
 TARGET_RECOVERY_QCOM_RTC_FIX	:= true
-TARGET_CRYPTFS_HW_PATH	:= vendor/qcom/opensource/commonsys/cryptfs_hw
 
 # Recovery - TWRP
 TW_BRIGHTNESS_PATH := "/sys/class/leds/lcd-backlight/brightness"
