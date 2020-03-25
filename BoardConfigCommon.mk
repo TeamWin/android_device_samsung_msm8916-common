@@ -104,6 +104,7 @@ TARGET_KERNEL_SELINUX_CONFIG := selinux_defconfig
 TARGET_KERNEL_SELINUX_LOG_CONFIG := selinux_log_defconfig
 TARGET_KERNEL_SOURCE := kernel/samsung/msm8916
 TARGET_CUSTOM_DTBTOOL := dtbToolLineage
+TARGET_CRYPTFS_HW_PATH	:= device/qcom/common/cryptfs_hw
 TARGET_OTA_ASSERT_DEVICE := j5lte,J5ltexx,j5ltechn,j5nlte,j5nltexx,j53gxx,j5xnlte,j5xlte,j5x3g
 
 # Kernel - Toolchain
