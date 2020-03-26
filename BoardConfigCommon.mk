@@ -60,6 +60,7 @@ TARGET_USES_GRALLOC1 := true
 TARGET_USES_NEW_ION_API := true
 
 # Encryption
+TARGET_CRYPTFS_HW_PATH	:= $(LOCAL_PATH)/cryptfs_hw
 TARGET_LEGACY_HW_DISK_ENCRYPTION := true
 TARGET_HW_KEYMASTER_V03 := true
 TARGET_KEYMASTER_WAIT_FOR_QSEE := true
@@ -104,7 +105,6 @@ TARGET_KERNEL_SELINUX_CONFIG := selinux_defconfig
 TARGET_KERNEL_SELINUX_LOG_CONFIG := selinux_log_defconfig
 TARGET_KERNEL_SOURCE := kernel/samsung/msm8916
 TARGET_CUSTOM_DTBTOOL := dtbToolLineage
-TARGET_CRYPTFS_HW_PATH	:= device/qcom/common/cryptfs_hw
 TARGET_OTA_ASSERT_DEVICE := j5lte,J5ltexx,j5ltechn,j5nlte,j5nltexx,j53gxx,j5xnlte,j5xlte,j5x3g
 
 # Kernel - Toolchain
@@ -160,6 +160,7 @@ TW_TARGET_USES_QCOM_BSP := false
 TW_THEME := portrait_hdpi
 TW_EXCLUDE_SUPERSU := true
 TW_USE_TOOLBOX := true
+
 
 ifeq ($(RECOVERY_VARIANT),twrp)
 	BOARD_GLOBAL_CFLAGS += -DTW_USE_MINUI_CUSTOM_FONTS
