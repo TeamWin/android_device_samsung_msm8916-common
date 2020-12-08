@@ -141,6 +141,15 @@
         </interface>
     </hal>
     <hal format="hidl">
+        <name>android.hardware.usb.gadget</name>
+        <transport>hwbinder</transport>
+        <version>1.0</version>
+        <interface>
+            <name>IUsbGadget</name>
+            <instance>default</instance>
+        </interface>
+    </hal>
+    <hal format="hidl">
         <name>android.hardware.graphics.mapper</name>
         <transport arch="32">passthrough</transport>
         <version>2.0</version>
