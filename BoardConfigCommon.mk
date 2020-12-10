@@ -35,59 +35,12 @@ TARGET_CPU_SMP := true
 TARGET_CPU_VARIANT := cortex-a53
 TARGET_PLATFORM_DEVICE_BASE := /devices/soc.0/
 
-# ANT+
-BOARD_ANT_WIRELESS_DEVICE := "vfs-prerelease"
-
-# Audio
-AUDIO_CONFIG_PATH := hardware/qcom/audio-caf/msm8916/configs
-BOARD_USES_ALSA_AUDIO := true
-BOARD_USES_GENERIC_AUDIO := true
-TARGET_USES_QCOM_MM_AUDIO := true
-USE_CUSTOM_AUDIO_POLICY := 1
-USE_XML_AUDIO_POLICY_CONF := 1
-
-# Mixer paths
-ifneq ($(USE_CUSTOM_MIXER_PATHS), true)
-PRODUCT_COPY_FILES += \
-    $(COMMON_PATH)/configs/audio/mixer_paths.xml:$(TARGET_COPY_OUT_VENDOR)/etc/mixer_paths.xml
-endif
-
-#XML Audio configuration files
-ifeq ($(USE_XML_AUDIO_POLICY_CONF), 1)
-PRODUCT_COPY_FILES += \
-    $(COMMON_PATH)/configs/audio/audio_effects.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio_effects.xml \
-    $(AUDIO_CONFIG_PATH)/msm8916_32/audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio_policy_configuration.xml \
-    frameworks/av/services/audiopolicy/config/a2dp_audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/a2dp_audio_policy_configuration.xml \
-    frameworks/av/services/audiopolicy/config/audio_policy_volumes.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio_policy_volumes.xml \
-    frameworks/av/services/audiopolicy/config/default_volume_tables.xml:$(TARGET_COPY_OUT_VENDOR)/etc/default_volume_tables.xml \
-    frameworks/av/services/audiopolicy/config/r_submix_audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/r_submix_audio_policy_configuration.xml \
-    frameworks/av/services/audiopolicy/config/usb_audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/usb_audio_policy_configuration.xml
-endif
-
 # Binder API version
 TARGET_USES_64_BIT_BINDER := true
-
-# Bluetooth
-BOARD_HAVE_BLUETOOTH := true
-BOARD_HAVE_BLUETOOTH_QCOM := true
-QCOM_BT_USE_BTNV := true
-BLUETOOTH_HCI_USE_MCT := true
-
-# Bootanimation
-TARGET_BOOTANIMATION_HALF_RES := true
 
 # Bootloader
 BOARD_PROVIDES_BOOTLOADER_MESSAGE := false
 TARGET_BOOTLOADER_BOARD_NAME := MSM8916
-
-# Camera
-BOARD_GLOBAL_CFLAGS += -DMETADATA_CAMERA_SOURCE
-TARGET_HAS_LEGACY_CAMERA_HAL1 := true
-TARGET_NEEDS_LEGACY_CAMERA_HAL1_DYN_NATIVE_HANDLE := true
-TARGET_PROVIDES_CAMERA_HAL := true
-TARGET_USE_VENDOR_CAMERA_EXT := true
-TARGET_USES_QTI_CAMERA_DEVICE := true
-USE_DEVICE_SPECIFIC_CAMERA := true
 
 # Charger
 BOARD_CHARGER_ENABLE_SUSPEND    := true
@@ -128,15 +81,6 @@ TARGET_USERIMAGES_USE_EXT4 := true
 TARGET_USERIMAGES_USE_F2FS := true
 BOARD_ROOT_EXTRA_FOLDERS := firmware firmware-modem persist efs
 BOARD_ROOT_EXTRA_SYMLINKS := /data/tombstones:/tombstones
-
-# FM
-AUDIO_FEATURE_ENABLED_FM := true
-BOARD_HAVE_QCOM_FM := true
-AUDIO_FEATURE_ENABLED_FM_POWER_OPT := true
-
-# GPS
-TARGET_NO_RPC := true
-USE_DEVICE_SPECIFIC_GPS := true
 
 # HIDL
 DEVICE_MANIFEST_FILE := $(COMMON_PATH)/manifest.xml
@@ -183,12 +127,6 @@ MALLOC_SVELTE := true
 # Media
 TARGET_QCOM_MEDIA_VARIANT           := caf
 TARGET_ENABLE_QC_AV_ENHANCEMENTS := true
-
-# Network Routing
-TARGET_NEEDS_NETD_DIRECT_CONNECT_RULE := true
-
-# NFC
-BOARD_NFC_HAL_SUFFIX := msm8916
 
 # Partition sizes
 BOARD_BOOTIMAGE_PARTITION_SIZE      := 13631488
@@ -247,6 +185,10 @@ TW_NO_REBOOT_BOOTLOADER := true
 TW_NO_USB_STORAGE := true
 TW_TARGET_USES_QCOM_BSP := false
 TW_THEME := portrait_hdpi
+TW_EXCLUDE_SUPERSU := true
+TW_OVERRIDE_SYSTEM_PROPS := "ro.build.fingerprint;ro.build.version.incremental"
+TW_USE_TOOLBOX := true
+TW_EXCLUDE_TWRPAPP := true
 
 ifeq ($(RECOVERY_VARIANT),twrp)
 	BOARD_GLOBAL_CFLAGS += -DTW_USE_MINUI_CUSTOM_FONTS
@@ -257,7 +199,7 @@ endif
 #endif
 
 # SELinux
-include device/qcom/sepolicy-legacy/sepolicy.mk
+#include device/qcom/sepolicy-legacy/sepolicy.mk
 
 #BOARD_SEPOLICY_DIRS += \
 #    $(COMMON_PATH)/sepolicy
@@ -272,7 +214,7 @@ TARGET_LD_SHIM_LIBS := \
     /system/vendor/lib/libqomx_jpegenc.so|libboringssl-compat.so
 
 # Snapdragon LLVM
-TARGET_USE_SDCLANG := true
+TARGET_USE_SDCLANG := false
 
 # Time services
 BOARD_USES_QC_TIME_SERVICES := true
@@ -281,18 +223,3 @@ BOARD_USES_QC_TIME_SERVICES := true
 BOARD_VOLD_DISC_HAS_MULTIPLE_MAJORS := true
 BOARD_VOLD_MAX_PARTITIONS := 67
 TARGET_USE_CUSTOM_LUN_FILE_PATH := /sys/devices/platform/msm_hsusb/gadget/lun%d/file
-
-# Wifi
-BOARD_HAS_QCOM_WLAN := true
-BOARD_HAS_QCOM_WLAN_SDK := true
-BOARD_HOSTAPD_DRIVER := NL80211
-BOARD_HOSTAPD_PRIVATE_LIB := lib_driver_cmd_qcwcn
-BOARD_WLAN_DEVICE := qcwcn
-BOARD_WPA_SUPPLICANT_DRIVER := NL80211
-BOARD_WPA_SUPPLICANT_PRIVATE_LIB := lib_driver_cmd_qcwcn
-TARGET_USES_QCOM_WCNSS_QMI := true
-TARGET_USES_WCNSS_CTRL := true
-WIFI_DRIVER_FW_PATH_AP := "ap"
-WIFI_DRIVER_FW_PATH_STA := "sta"
-WLAN_CHIPSET := pronto
-WPA_SUPPLICANT_VERSION := VER_0_8_X
