@@ -106,6 +106,7 @@ TARGET_CONTINUOUS_SPLASH_ENABLED := true
 TARGET_USES_C2D_COMPOSITION := true
 
 # Encryption
+TARGET_CRYPTFS_HW_PATH := $(COMMON_PATH)/cryptfs_hw
 TARGET_LEGACY_HW_DISK_ENCRYPTION := true
 TARGET_HW_KEYMASTER_V03 := true
 TARGET_KEYMASTER_WAIT_FOR_QSEE := true
@@ -168,6 +169,7 @@ TARGET_KERNEL_CONFIG := msm8916_sec_defconfig
 TARGET_KERNEL_SELINUX_CONFIG := selinux_defconfig
 TARGET_KERNEL_SELINUX_LOG_CONFIG := selinux_log_defconfig
 TARGET_KERNEL_SOURCE := kernel/samsung/msm8916
+TARGET_CUSTOM_DTBTOOL := dtbToolLineage
 
 # Kernel - Toolchain
 ifneq ($(wildcard $(BUILD_TOP)/prebuilts/gcc/$(HOST_OS)-x86/arm/arm-eabi-7.2/bin),)
