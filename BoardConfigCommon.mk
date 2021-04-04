@@ -18,9 +18,6 @@ COMMON_PATH := device/samsung/msm8916-common
 # Includes
 TARGET_SPECIFIC_HEADER_PATH := $(COMMON_PATH)/include
 
-# Inherit from common
--include device/samsung/qcom-common/BoardConfigCommon.mk
-
 # OEM Info
 BOARD_VENDOR := samsung
 
@@ -69,7 +66,6 @@ TARGET_USES_C2D_COMPOSITION := true
 TARGET_CRYPTFS_HW_PATH := vendor/qcom/opensource/commonsys/cryptfs
 TARGET_KEYMASTER_WAIT_FOR_QSEE := true
 TARGET_HW_DISK_ENCRYPTION := false
-BOARD_USES_QCOM_DECRYPTION := true
 
 # Filesystems
 TARGET_FS_CONFIG_GEN := $(COMMON_PATH)/config.fs
